@@ -10,13 +10,14 @@ rulat o singură dată.
 | Sistem           | activează repository-ul `community`, actualizează tot                     |
 | Utilizator       | creează utilizatorul tău (dacă nu există), admin prin `doas`              |
 | SSH              | doar cu cheie, fără login root, max. 3 încercări                          |
-| Firewall (`ufw`) | blochează tot ce intră, în afară de SSH și interfața web                  |
+| Firewall (`ufw`) | blochează tot ce intră, în afară de SSH, interfața web și porturile 80/443 |
 | `fail2ban`       | blochează 1 oră IP-urile care greșesc de 5 ori                            |
 | Ora              | fus orar `Europe/Bucharest`, sincronizare automată (chrony)               |
 | Utilitare        | `bash`, `curl`, `git`, `nano`, `htop`                                     |
 | **Python**       | `python3`, `pip`, `venv`, `pipx`, compilatoare pentru pachete native      |
 | **Docker**       | `docker` + `docker compose`, utilizabil fără `doas`                       |
 | **Interfață web**| Portainer pe **https://IP-mini-pc:9443**                                  |
+| Actualizări      | automate, zilnic, prin `crond` (log: `/var/log/auto-update.log`)          |
 | Desktop          | opțional: interfață grafică pe monitorul mini PC-ului                     |
 
 Parola SSH se dezactivează **doar dacă există o cheie**, ca să nu rămâi blocat pe dinafară.
@@ -63,6 +64,9 @@ python3 -m venv ~/venv && . ~/venv/bin/activate && pip install requests
 pipx install httpie            # pentru aplicații de linie de comandă
 ```
 
+Actualizările automate nu repornesc niciodată mini PC-ul. Dacă se instalează un kernel nou,
+apare mesajul în `/var/log/auto-update.log` și fișierul `/run/reboot-required`; atunci rulezi `doas reboot`.
+
 > Docker ocolește `ufw` pentru porturile containerelor. Nu deschide portul 9443
 > spre internet din router.
 
@@ -79,6 +83,8 @@ pipx install httpie            # pentru aplicații de linie de comandă
 | `PYTHON`    | `1`                        | `0` = fără Python                           |
 | `DOCKER`    | `1`                        | `0` = fără Docker (și fără Portainer)       |
 | `PORTAINER` | `1`                        | `0` = fără interfață web                    |
+| `WEB_PORTS` | `1`                        | `0` = nu deschide porturile 80 și 443       |
+| `AUTO_UPDATE` | `1`                      | `0` = fără actualizări automate             |
 | `DESKTOP`   | –                          | `xfce`, `gnome`, `plasma`, `mate`, `sway`   |
 
 Configurația SSH: `/etc/ssh/sshd_config.d/10-minipc.conf`.

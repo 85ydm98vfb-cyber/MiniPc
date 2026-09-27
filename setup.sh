@@ -17,6 +17,8 @@
 #   PYTHON      1 = Python 3 + pip + venv + pipx (implicit 1)
 #   DOCKER      1 = Docker + docker compose (implicit 1)
 #   PORTAINER   1 = interfata web pe https://IP:9443 (implicit 1, necesita DOCKER=1)
+#   WEB_PORTS   1 = deschide porturile 80 si 443 pentru aplicatii (implicit 1)
+#   AUTO_UPDATE 1 = actualizari automate zilnice ale pachetelor (implicit 1)
 #   DESKTOP     xfce / gnome / plasma / mate / sway = interfata grafica pe monitor
 #
 # Parola la SSH si login-ul ca root sunt dezactivate DOAR daca exista cel putin
@@ -37,6 +39,8 @@ FAIL2BAN="${FAIL2BAN:-1}"
 PYTHON="${PYTHON:-1}"
 DOCKER="${DOCKER:-1}"
 PORTAINER="${PORTAINER:-1}"
+WEB_PORTS="${WEB_PORTS:-1}"
+AUTO_UPDATE="${AUTO_UPDATE:-1}"
 DESKTOP="${DESKTOP:-}"
 
 [ "$NEW_USER" = root ] && NEW_USER=
@@ -157,6 +161,10 @@ if [ "$FIREWALL" = 1 ]; then
     ufw default allow outgoing
     ufw limit "$SSH_PORT/tcp" comment 'SSH'
     [ "$PORTAINER" = 1 ] && ufw allow 9443/tcp comment 'Portainer'
+    if [ "$WEB_PORTS" = 1 ]; then
+        ufw allow 80/tcp comment 'HTTP'
+        ufw allow 443/tcp comment 'HTTPS'
+    fi
     ufw --force enable
     rc-update add ufw default >/dev/null
 fi
@@ -192,7 +200,34 @@ echo "$TZ_NAME" > /etc/timezone
 rc-update add chronyd default >/dev/null
 rc-service chronyd restart
 
-# === 7. Python ==============================================================
+# === 7. Actualizari automate ================================================
+if [ "$AUTO_UPDATE" = 1 ]; then
+    log "Activez actualizarile automate (zilnic, log in /var/log/auto-update.log)"
+    cat > /etc/periodic/daily/auto-update <<'EOF'
+#!/bin/sh
+# Generat de setup.sh - actualizeaza zilnic pachetele Alpine.
+LOG=/var/log/auto-update.log
+# pastreaza logul mic
+[ -f "$LOG" ] && [ "$(wc -c < "$LOG")" -gt 1000000 ] && \
+    tail -n 2000 "$LOG" > "$LOG.tmp" && mv "$LOG.tmp" "$LOG"
+{
+    echo "=== $(date)"
+    apk update -q && apk upgrade --no-progress
+    # kernel nou instalat -> e nevoie de restart (nu reporneste singur)
+    if [ ! -d "/lib/modules/$(uname -r)" ]; then
+        echo "Kernel nou instalat - ruleaza: doas reboot"
+        touch /run/reboot-required
+    fi
+} >> "$LOG" 2>&1
+EOF
+    chmod 755 /etc/periodic/daily/auto-update
+    rc-update add crond default >/dev/null
+    rc-service crond start >/dev/null 2>&1 || true
+else
+    rm -f /etc/periodic/daily/auto-update
+fi
+
+# === 8. Python ==============================================================
 if [ "$PYTHON" = 1 ]; then
     log "Python: $(python3 --version)"
     if [ -n "$NEW_USER" ]; then
@@ -205,7 +240,7 @@ if [ "$PYTHON" = 1 ]; then
     fi
 fi
 
-# === 8. Docker + Portainer ==================================================
+# === 9. Docker + Portainer ==================================================
 if [ "$DOCKER" = 1 ]; then
     log "Pornesc Docker"
     rc-update add docker default >/dev/null
@@ -232,7 +267,7 @@ if [ "$PORTAINER" = 1 ]; then
         portainer/portainer-ce:lts >/dev/null
 fi
 
-# === 9. Interfata grafica pe monitor (optional) =============================
+# === 10. Interfata grafica pe monitor (optional) =============================
 if [ -n "$DESKTOP" ]; then
     command -v setup-desktop >/dev/null || apk add alpine-conf
     log "Instalez interfata grafica: $DESKTOP"
@@ -248,6 +283,8 @@ echo "  SSH:        ssh -p $SSH_PORT $TARGET_USER@$IP   (parola: $PASS_AUTH, roo
 echo "  Ora:        $(date)"
 [ "$PYTHON" = 1 ] && echo "  Python:     $(python3 --version 2>&1)"
 [ "$DOCKER" = 1 ] && echo "  Docker:     $(docker --version)"
+[ "$WEB_PORTS" = 1 ] && [ "$FIREWALL" = 1 ] && echo "  Porturi:    80 si 443 deschise pentru aplicatii"
+[ "$AUTO_UPDATE" = 1 ] && echo "  Update:     automat, zilnic (log: /var/log/auto-update.log)"
 if [ "$PORTAINER" = 1 ]; then
     echo "  Interfata:  https://$IP:9443"
     echo
