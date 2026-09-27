@@ -43,12 +43,16 @@ cd MiniPc
 NEW_USER=numele_tau PUBKEY="ssh-ed25519 AAAA...cheia_ta..." sh setup.sh
 ```
 
-### Cu interfață grafică pe monitor
+### Interfață grafică (desktop) + Remote Desktop din Windows
 
 ```sh
-doas env DESKTOP=xfce sh setup.sh     # sau gnome / plasma / mate / sway
+wget -O desktop.sh https://raw.githubusercontent.com/85ydm98vfb-cyber/MiniPc/claude/mini-pc-ssh-config-jx93hs/desktop.sh
+doas sh desktop.sh
 doas reboot
 ```
+
+Instalează XFCE, Firefox și câteva aplicații, plus `xrdp` pe portul 3389 (doar din rețeaua de acasă).
+Din Windows: **Remote Desktop Connection** (`mstsc`) → IP-ul mini PC-ului → utilizatorul și parola ta → *Session: Xorg*.
 
 ## După rulare
 
