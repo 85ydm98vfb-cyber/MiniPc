@@ -53,6 +53,16 @@ doas reboot
 Instalează XFCE, Firefox și câteva aplicații, plus `xrdp` pe portul 3389 (doar din rețeaua de acasă).
 Din Windows: **Remote Desktop Connection** (`mstsc`) → IP-ul mini PC-ului → utilizatorul și parola ta → *Session: Xorg*.
 
+### Acces de oriunde (date mobile) cu Tailscale
+
+```sh
+wget -O tailscale.sh https://raw.githubusercontent.com/85ydm98vfb-cyber/MiniPc/claude/mini-pc-ssh-config-jx93hs/tailscale.sh
+doas sh tailscale.sh
+```
+
+Aplicația devine disponibilă pe **https://minipc.<rețeaua-ta>.ts.net** (certificat valid), iar SSH și
+Remote Desktop merg și pe IP-ul Tailscale. Pe telefon/laptop instalezi aplicația Tailscale, cu același cont.
+
 ## După rulare
 
 1. Testează SSH-ul dintr-un **terminal nou** înainte să-l închizi pe cel vechi.
