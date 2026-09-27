@@ -1,115 +1,83 @@
 # MiniPc
 
-Setup complet pentru un mini PC cu **Alpine Linux**: un singur script, `setup.sh`,
-rulat o singură dată.
+Mini PC cu **Alpine Linux**: trei scripturi, fiecare rulat cu `doas` prin SSH.
 
-## Ce face
+| Script         | Ce face |
+|----------------|---------|
+| `setup.sh`     | sistemul: SSH doar cu cheie, firewall, fail2ban, ora, Python, actualizări automate, desktop XFCE + Remote Desktop |
+| `PSgames.sh`   | instalează / actualizează **PlayStation Games** (port 8095) și, opțional, adresa `https://…duckdns.org` |
+| `watchtime.sh` | instalează / actualizează **Watch Time** (port 8765) și, opțional, adresa `https://…duckdns.org` |
 
-| Parte            | Detalii                                                                   |
-|------------------|---------------------------------------------------------------------------|
-| Sistem           | activează repository-ul `community`, actualizează tot                     |
-| Utilizator       | creează utilizatorul tău (dacă nu există), admin prin `doas`              |
-| SSH              | doar cu cheie, fără login root, max. 3 încercări                          |
-| Firewall (`ufw`) | blochează tot ce intră, în afară de SSH, interfața web și porturile 80/443 |
-| `fail2ban`       | blochează 1 oră IP-urile care greșesc de 5 ori                            |
-| Ora              | fus orar `Europe/Bucharest`, sincronizare automată (chrony)               |
-| Utilitare        | `bash`, `curl`, `git`, `nano`, `htop`                                     |
-| **Python**       | `python3`, `pip`, `venv`, `pipx`, compilatoare pentru pachete native      |
-| Docker           | opțional (`DOCKER=1`): `docker` + `docker compose` + Portainer pe **https://IP-mini-pc:9443** |
-| Actualizări      | automate, zilnic, prin `crond` (log: `/var/log/auto-update.log`)          |
-| Desktop          | `desktop.sh`: XFCE + Remote Desktop din Windows                           |
+Scripturile pot fi rulate de oricâte ori: datele, parolele și setările rămân.
+Codul aplicațiilor nu este în acest repo — arhivele `.zip` le copiezi de pe laptop.
 
-Parola SSH se dezactivează **doar dacă există o cheie**, ca să nu rămâi blocat pe dinafară.
-Scriptul poate fi rulat de mai multe ori fără probleme.
+## 1. `setup.sh` — sistemul
 
-## Rulare
-
-### Dacă te poți loga deja prin SSH cu utilizatorul tău
+Instalare nouă, logat ca root (cheia publică de pe laptop: `cat ~/.ssh/id_ed25519.pub`):
 
 ```sh
-cd MiniPc && git pull          # sau: git clone -b claude/mini-pc-ssh-config-jx93hs https://github.com/85ydm98vfb-cyber/MiniPc.git
-doas sh setup.sh
-```
-
-### Instalare nouă, logat ca root
-
-Pe laptop: `ssh-keygen -t ed25519` și `cat ~/.ssh/id_ed25519.pub`. Apoi pe mini PC:
-
-```sh
-apk add git
-git clone -b claude/mini-pc-ssh-config-jx93hs https://github.com/85ydm98vfb-cyber/MiniPc.git
-cd MiniPc
-NEW_USER=numele_tau PUBKEY="ssh-ed25519 AAAA...cheia_ta..." sh setup.sh
-```
-
-### Interfață grafică (desktop) + Remote Desktop din Windows
-
-```sh
-wget -O desktop.sh https://raw.githubusercontent.com/85ydm98vfb-cyber/MiniPc/claude/mini-pc-ssh-config-jx93hs/desktop.sh
-doas sh desktop.sh
+wget -O setup.sh https://raw.githubusercontent.com/85ydm98vfb-cyber/MiniPc/claude/mini-pc-ssh-config-jx93hs/setup.sh
+NEW_USER=alex PUBKEY="ssh-ed25519 AAAA..." sh setup.sh
 doas reboot
 ```
 
-Instalează XFCE, Firefox și câteva aplicații, plus `xrdp` pe portul 3389 (doar din rețeaua de acasă).
-Din Windows: **Remote Desktop Connection** (`mstsc`) → IP-ul mini PC-ului → utilizatorul și parola ta → *Session: Xorg*.
+Pe un sistem deja configurat, logat ca utilizatorul tău: `doas sh setup.sh`.
 
-### Acces de oriunde cu DuckDNS + Caddy (fără aplicații pe telefon)
+| Variabilă     | Implicit                   | Descriere |
+|---------------|----------------------------|-----------|
+| `NEW_USER`    | cel care a rulat `doas`    | utilizatorul tău (admin prin `doas`) |
+| `PUBKEY`      | –                          | cheie publică SSH de adăugat |
+| `SSH_PORT`    | cel configurat / `22`      | portul SSH |
+| `TZ_NAME`     | `Europe/Bucharest`         | fusul orar |
+| `FIREWALL`    | `1`                        | ufw: SSH, 80, 443 deschise; restul doar din LAN |
+| `FAIL2BAN`    | `1`                        | blochează IP-urile care greșesc SSH |
+| `PYTHON`      | `1`                        | python3, pip, venv, pipx, compilatoare |
+| `AUTO_UPDATE` | `1`                        | `apk upgrade` zilnic, fără restart automat |
+| `DESKTOP`     | `1`                        | XFCE + Firefox + Remote Desktop (3389, doar LAN) |
+| `DOCKER`      | `0`                        | `1` = Docker + Portainer |
+| `WEB_PORTS`   | `1`                        | deschide 80 și 443 pentru aplicații |
 
-Condiții: IP public de la furnizorul de internet și port forwarding 80 + 443 (TCP) în router către mini PC.
-Pe https://www.duckdns.org îți faci un subdomeniu și copiezi tokenul.
+Remote Desktop din Windows: `mstsc` → `192.168.0.187` → *Session: Xorg*, utilizatorul și parola ta.
 
-```sh
-wget -O public-web.sh https://raw.githubusercontent.com/85ydm98vfb-cyber/MiniPc/claude/mini-pc-ssh-config-jx93hs/public-web.sh
-doas env SITES="psgames:8095 watchtime-alex:8765" DUCK_TOKEN=tokenul-tau sh public-web.sh
+## 2. Aplicațiile
+
+Copiezi arhiva de pe laptop (PowerShell), apoi rulezi scriptul pe mini PC:
+
+```powershell
+scp .\watchtime.zip alex@192.168.0.187:~
 ```
 
-Fiecare aplicație primește adresa ei (**https://psgames.duckdns.org**, ...) — certificate Let's Encrypt,
-reînnoite automat de Caddy. La o nouă rulare tokenul se ia din `/etc/duckdns.conf`.
-
-### Acces de oriunde (date mobile) cu Tailscale
-
 ```sh
-wget -O tailscale.sh https://raw.githubusercontent.com/85ydm98vfb-cyber/MiniPc/claude/mini-pc-ssh-config-jx93hs/tailscale.sh
-doas sh tailscale.sh
+wget -O watchtime.sh https://raw.githubusercontent.com/85ydm98vfb-cyber/MiniPc/claude/mini-pc-ssh-config-jx93hs/watchtime.sh
+doas sh watchtime.sh ~/watchtime.zip
 ```
 
-Aplicația devine disponibilă pe **https://minipc.<rețeaua-ta>.ts.net** (certificat valid), iar SSH și
-Remote Desktop merg și pe IP-ul Tailscale. Pe telefon/laptop instalezi aplicația Tailscale, cu același cont.
-
-## După rulare
-
-1. Testează SSH-ul dintr-un **terminal nou** înainte să-l închizi pe cel vechi.
-2. Doar cu `DOCKER=1`: deschide **https://IP-mini-pc:9443**, creează contul de admin cu tokenul din
-   `doas docker logs portainer`, apoi delogează-te și loghează-te din nou (docker fără `doas`).
-
-Python — folosește medii virtuale (pe Alpine `pip install` global este blocat):
+La fel pentru PlayStation Games:
 
 ```sh
-python3 -m venv ~/venv && . ~/venv/bin/activate && pip install requests
-pipx install httpie            # pentru aplicații de linie de comandă
+wget -O PSgames.sh https://raw.githubusercontent.com/85ydm98vfb-cyber/MiniPc/claude/mini-pc-ssh-config-jx93hs/PSgames.sh
+doas sh PSgames.sh ~/ps-games-server.zip
 ```
 
-Actualizările automate nu repornesc niciodată mini PC-ul. Dacă se instalează un kernel nou,
-apare mesajul în `/var/log/auto-update.log` și fișierul `/run/reboot-required`; atunci rulezi `doas reboot`.
+**Actualizare** = aceiași pași cu arhiva nouă. Scripturile nu ating `data/` și `config.json`.
+Nu folosi `install.sh` din arhive: acela rulează aplicația din alt folder, cu o bază de date goală.
 
-> Cu `DOCKER=1`: Docker ocolește `ufw` pentru porturile containerelor. Nu deschide portul 9443
-> spre internet din router.
+### Acces de oriunde (DuckDNS + Caddy, HTTPS)
 
-## Opțiuni
+Condiții: IP public, port forwarding **80** și **443** (TCP) în router către mini PC,
+câte un subdomeniu pe https://www.duckdns.org pentru fiecare aplicație.
 
-| Variabilă   | Implicit                   | Descriere                                   |
-|-------------|----------------------------|---------------------------------------------|
-| `NEW_USER`  | cel care a rulat `doas`    | utilizatorul tău                            |
-| `PUBKEY`    | –                          | cheie publică SSH de adăugat                |
-| `SSH_PORT`  | cel configurat deja / `22` | portul SSH                                  |
-| `TZ_NAME`   | `Europe/Bucharest`         | fusul orar                                  |
-| `FIREWALL`  | `1`                        | `0` = fără ufw                              |
-| `FAIL2BAN`  | `1`                        | `0` = fără fail2ban                         |
-| `PYTHON`    | `1`                        | `0` = fără Python                           |
-| `DOCKER`    | `0`                        | `1` = Docker + Portainer                    |
-| `PORTAINER` | = `DOCKER`                 | `0` = Docker fără interfață web             |
-| `WEB_PORTS` | `1`                        | `0` = nu deschide porturile 80 și 443       |
-| `AUTO_UPDATE` | `1`                      | `0` = fără actualizări automate             |
-| `DESKTOP`   | –                          | `xfce`, `gnome`, `plasma`, `mate`, `sway`   |
+```sh
+doas env DOMAIN=psgames DUCK_TOKEN=tokenul-tau sh PSgames.sh ~/ps-games-server.zip
+doas env DOMAIN=watch-time sh watchtime.sh ~/watchtime.zip      # tokenul se ia din /etc/duckdns.conf
+```
 
-Configurația SSH: `/etc/ssh/sshd_config.d/10-minipc.conf`.
+Toate aplicațiile publicate sunt ținute în `/etc/duckdns.conf`; Caddy obține și reînnoiește singur certificatele.
+Adminul Watch Time merge doar de acasă, pe `http://192.168.0.187:8765`.
+
+| Aplicație        | Serviciu     | Date                          | Log |
+|------------------|--------------|-------------------------------|-----|
+| PlayStation Games| `ps-games`   | `/opt/ps-games/data`          | `/var/log/ps-games.log` |
+| Watch Time       | `watchtime`  | `/opt/watchtime/data`         | `/var/log/watchtime.log` |
+
+Comenzi: `doas rc-service <serviciu> status | restart`, `doas tail -f <log>`.

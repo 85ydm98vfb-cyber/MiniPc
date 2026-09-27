@@ -1,7 +1,8 @@
 #!/bin/sh
 # Setup complet pentru mini PC cu Alpine Linux - rulezi o data si se face tot:
-#   SSH securizat, firewall, fail2ban, ora, utilitare, Python, Docker,
-#   interfata web Portainer si (optional) interfata grafica pe monitor.
+#   SSH securizat, firewall, fail2ban, ora, utilitare, Python, actualizari automate,
+#   desktop XFCE + Remote Desktop din Windows, (optional) Docker + Portainer.
+# Aplicatiile se instaleaza separat: PSgames.sh si watchtime.sh.
 #
 # Utilizare:
 #   doas sh setup.sh                          (logat prin SSH cu utilizatorul tau)
@@ -19,7 +20,7 @@
 #   PORTAINER   1 = interfata web pe https://IP:9443 (implicit = DOCKER, necesita DOCKER=1)
 #   WEB_PORTS   1 = deschide porturile 80 si 443 pentru aplicatii (implicit 1)
 #   AUTO_UPDATE 1 = actualizari automate zilnice ale pachetelor (implicit 1)
-#   DESKTOP     xfce / gnome / plasma / mate / sway = interfata grafica pe monitor
+#   DESKTOP     1 = desktop XFCE + Firefox + Remote Desktop (port 3389, doar LAN) (implicit 1)
 #
 # Parola la SSH si login-ul ca root sunt dezactivate DOAR daca exista cel putin
 # o cheie in authorized_keys, ca sa nu ramai blocat pe dinafara.
@@ -41,7 +42,8 @@ DOCKER="${DOCKER:-0}"
 PORTAINER="${PORTAINER:-$DOCKER}"
 WEB_PORTS="${WEB_PORTS:-1}"
 AUTO_UPDATE="${AUTO_UPDATE:-1}"
-DESKTOP="${DESKTOP:-}"
+DESKTOP="${DESKTOP:-1}"
+[ "$DESKTOP" = xfce ] && DESKTOP=1
 
 [ "$NEW_USER" = root ] && NEW_USER=
 
@@ -267,11 +269,45 @@ if [ "$PORTAINER" = 1 ]; then
         portainer/portainer-ce:lts >/dev/null
 fi
 
-# === 10. Interfata grafica pe monitor (optional) =============================
-if [ -n "$DESKTOP" ]; then
+# === 10. Desktop XFCE + Remote Desktop (optional) ===========================
+if [ "$DESKTOP" = 1 ]; then
+    [ -n "$NEW_USER" ] || die "Desktopul are nevoie de utilizatorul tau: ruleaza cu doas sau seteaza NEW_USER."
+    log "Instalez desktopul XFCE (dureaza cateva minute)"
     command -v setup-desktop >/dev/null || apk add alpine-conf
-    log "Instalez interfata grafica: $DESKTOP"
-    setup-desktop "$DESKTOP"
+    setup-desktop xfce
+    apk add dbus dbus-x11 xfce4-terminal xrdp xorgxrdp
+    for p in firefox mousepad ristretto xarchiver thunar-archive-plugin \
+             font-dejavu font-noto adwaita-icon-theme; do
+        apk add -q "$p" || warn "Nu am putut instala $p - continui fara el."
+    done
+    rc-update add dbus default >/dev/null
+    rc-service dbus start >/dev/null 2>&1 || true
+    for g in audio video input plugdev netdev; do
+        getent group "$g" >/dev/null && addgroup "$NEW_USER" "$g" 2>/dev/null || true
+    done
+
+    log "Configurez Remote Desktop (xrdp)"
+    [ -f /etc/xrdp/startwm.sh ] && [ ! -f /etc/xrdp/startwm.sh.orig ] && \
+        cp /etc/xrdp/startwm.sh /etc/xrdp/startwm.sh.orig
+    cat > /etc/xrdp/startwm.sh <<'EOF'
+#!/bin/sh
+# Generat de setup.sh - porneste XFCE pentru sesiunile Remote Desktop
+[ -r /etc/profile ] && . /etc/profile
+[ -r "$HOME/.profile" ] && . "$HOME/.profile"
+exec dbus-launch --exit-with-session startxfce4
+EOF
+    chmod 755 /etc/xrdp/startwm.sh
+    mkdir -p /etc/X11
+    echo "allowed_users=anybody" > /etc/X11/Xwrapper.config
+    for s in xrdp-sesman xrdp; do
+        if [ -x "/etc/init.d/$s" ]; then
+            rc-update add "$s" default >/dev/null
+            rc-service "$s" restart
+        fi
+    done
+    if [ "$FIREWALL" = 1 ]; then
+        ufw allow from 192.168.0.0/16 to any port 3389 proto tcp comment 'Remote Desktop (LAN)' >/dev/null
+    fi
 fi
 
 # === Rezumat ================================================================
@@ -297,6 +333,7 @@ if [ "$PORTAINER" = 1 ]; then
 fi
 echo
 [ -n "$NEW_USER" ] && warn "Delogheaza-te si logheaza-te din nou (docker fara doas, PATH pentru pipx)."
-[ -n "$DESKTOP" ] && warn "Reporneste (doas reboot) ca sa apara interfata grafica pe monitor."
+[ "$DESKTOP" = 1 ] && echo "  Desktop:    Remote Desktop (mstsc) -> $IP, utilizator $NEW_USER, Session: Xorg"
+[ "$DESKTOP" = 1 ] && warn "La prima instalare a desktopului reporneste o data: doas reboot"
 warn "NU inchide sesiunea curenta pana nu verifici conectarea SSH dintr-un terminal nou."
 exit 0
