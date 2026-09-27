@@ -59,3 +59,38 @@ doas apk update                # test drepturi de administrator
 
 Scriptul poate fi rulat de mai multe ori fără probleme. Configurația SSH se află în
 `/etc/ssh/sshd_config.d/10-minipc.conf`.
+
+## Pasul 2 — `setup-server.sh` (sistem + Docker + interfață web)
+
+După ce te poți loga prin SSH ca utilizatorul tău:
+
+```sh
+cd MiniPc
+git pull
+doas sh setup-server.sh
+```
+
+Ce face:
+
+- setează fusul orar (`Europe/Bucharest`) și sincronizarea orei (chrony)
+- instalează utilitare de bază: `bash`, `curl`, `nano`, `htop`
+- instalează **Docker** + `docker compose` și te adaugă în grupul `docker`
+- pornește **Portainer**, o interfață web din care administrezi mini PC-ul:
+  **https://IP-mini-pc:9443**
+  - creezi contul de admin în primele 5 minute (altfel: `doas docker restart portainer`)
+  - de acolo instalezi aplicații (Home Assistant, Jellyfin, Nextcloud, Pi-hole etc.)
+    cu câteva click-uri, din *Templates* sau *Stacks*
+
+Interfață grafică pe monitorul mini PC-ului (opțional):
+
+```sh
+doas env DESKTOP=xfce sh setup-server.sh     # sau gnome / plasma / mate
+doas reboot
+```
+
+| Variabilă     | Implicit           | Descriere                                    |
+|---------------|--------------------|----------------------------------------------|
+| `TZ_NAME`     | `Europe/Bucharest` | fusul orar                                   |
+| `DOCKER_USER` | utilizatorul tău   | cine poate folosi docker fără `doas`         |
+| `PORTAINER`   | `1`                | `0` = fără interfață web                     |
+| `DESKTOP`     | –                  | `xfce`, `gnome`, `plasma`, `mate`, `sway`    |
