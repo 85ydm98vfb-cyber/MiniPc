@@ -53,6 +53,18 @@ doas reboot
 Instalează XFCE, Firefox și câteva aplicații, plus `xrdp` pe portul 3389 (doar din rețeaua de acasă).
 Din Windows: **Remote Desktop Connection** (`mstsc`) → IP-ul mini PC-ului → utilizatorul și parola ta → *Session: Xorg*.
 
+### Acces de oriunde cu DuckDNS + Caddy (fără aplicații pe telefon)
+
+Condiții: IP public de la furnizorul de internet și port forwarding 80 + 443 (TCP) în router către mini PC.
+Pe https://www.duckdns.org îți faci un subdomeniu și copiezi tokenul.
+
+```sh
+wget -O public-web.sh https://raw.githubusercontent.com/85ydm98vfb-cyber/MiniPc/claude/mini-pc-ssh-config-jx93hs/public-web.sh
+doas env DUCK_DOMAIN=subdomeniul-tau DUCK_TOKEN=tokenul-tau sh public-web.sh
+```
+
+Aplicația: **https://subdomeniul-tau.duckdns.org** — certificat Let's Encrypt, reînnoit automat de Caddy.
+
 ### Acces de oriunde (date mobile) cu Tailscale
 
 ```sh
