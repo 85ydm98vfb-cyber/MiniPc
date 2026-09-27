@@ -1,96 +1,84 @@
 # MiniPc
 
-Configurare SSH pentru un mini PC cu **Alpine Linux**.
+Setup complet pentru un mini PC cu **Alpine Linux**: un singur script, `setup.sh`,
+rulat o singură dată.
 
-## Ce face `setup-ssh.sh`
+## Ce face
 
-- activează repository-ul `community` și actualizează sistemul
-- instalează `openssh`, `doas` (în loc de sudo), `ufw` și `fail2ban`
-- creează opțional un utilizator nou, cu drepturi de administrator prin `doas`
-- adaugă cheia ta publică SSH
-- securizează `sshd`: dezactivează parola și login-ul ca root, limitează încercările de autentificare
-  - parola este dezactivată **doar dacă există o cheie**, ca să nu rămâi blocat pe dinafară
-- firewall: blochează tot traficul care intră, cu excepția SSH
-- fail2ban: blochează 1 oră IP-urile care greșesc de 5 ori
-- pornește serviciile automat la boot (OpenRC)
+| Parte            | Detalii                                                                   |
+|------------------|---------------------------------------------------------------------------|
+| Sistem           | activează repository-ul `community`, actualizează tot                     |
+| Utilizator       | creează utilizatorul tău (dacă nu există), admin prin `doas`              |
+| SSH              | doar cu cheie, fără login root, max. 3 încercări                          |
+| Firewall (`ufw`) | blochează tot ce intră, în afară de SSH și interfața web                  |
+| `fail2ban`       | blochează 1 oră IP-urile care greșesc de 5 ori                            |
+| Ora              | fus orar `Europe/Bucharest`, sincronizare automată (chrony)               |
+| Utilitare        | `bash`, `curl`, `git`, `nano`, `htop`                                     |
+| **Python**       | `python3`, `pip`, `venv`, `pipx`, compilatoare pentru pachete native      |
+| **Docker**       | `docker` + `docker compose`, utilizabil fără `doas`                       |
+| **Interfață web**| Portainer pe **https://IP-mini-pc:9443**                                  |
+| Desktop          | opțional: interfață grafică pe monitorul mini PC-ului                     |
 
-## Pași
+Parola SSH se dezactivează **doar dacă există o cheie**, ca să nu rămâi blocat pe dinafară.
+Scriptul poate fi rulat de mai multe ori fără probleme.
 
-### 1. Pe laptop / PC — generezi o cheie (dacă nu ai deja)
+## Rulare
+
+### Dacă te poți loga deja prin SSH cu utilizatorul tău
 
 ```sh
-ssh-keygen -t ed25519
-cat ~/.ssh/id_ed25519.pub      # copiezi linia afișată
+cd MiniPc && git pull          # sau: git clone -b claude/mini-pc-ssh-config-jx93hs https://github.com/85ydm98vfb-cyber/MiniPc.git
+doas sh setup.sh
 ```
 
-(Pe Windows rulezi aceleași comenzi în PowerShell.)
+### Instalare nouă, logat ca root
 
-### 2. Pe mini PC — logat ca root
+Pe laptop: `ssh-keygen -t ed25519` și `cat ~/.ssh/id_ed25519.pub`. Apoi pe mini PC:
 
 ```sh
 apk add git
 git clone -b claude/mini-pc-ssh-config-jx93hs https://github.com/85ydm98vfb-cyber/MiniPc.git
 cd MiniPc
-
-NEW_USER=numele_tau \
-PUBKEY="ssh-ed25519 AAAA...cheia_ta... user@laptop" \
-sh setup-ssh.sh
+NEW_USER=numele_tau PUBKEY="ssh-ed25519 AAAA...cheia_ta..." sh setup.sh
 ```
 
-Dacă repo-ul este privat, copiază scriptul pe mini PC altfel, de exemplu pe un stick USB
-sau cu `scp setup-ssh.sh root@IP:/root/`.
-
-### 3. Testezi dintr-un terminal NOU (nu închide sesiunea veche!)
+### Cu interfață grafică pe monitor
 
 ```sh
-ssh numele_tau@IP-mini-pc
-doas apk update                # test drepturi de administrator
-```
-
-## Opțiuni
-
-| Variabilă  | Implicit | Descriere                                   |
-|------------|----------|---------------------------------------------|
-| `NEW_USER` | –        | utilizator nou, membru al grupului `wheel`  |
-| `PUBKEY`   | –        | cheia publică SSH                           |
-| `SSH_PORT` | `22`     | portul SSH                                  |
-| `FIREWALL` | `1`      | `0` = nu instala / activa ufw               |
-| `FAIL2BAN` | `1`      | `0` = nu instala / activa fail2ban          |
-
-Scriptul poate fi rulat de mai multe ori fără probleme. Configurația SSH se află în
-`/etc/ssh/sshd_config.d/10-minipc.conf`.
-
-## Pasul 2 — `setup-server.sh` (sistem + Docker + interfață web)
-
-După ce te poți loga prin SSH ca utilizatorul tău:
-
-```sh
-cd MiniPc
-git pull
-doas sh setup-server.sh
-```
-
-Ce face:
-
-- setează fusul orar (`Europe/Bucharest`) și sincronizarea orei (chrony)
-- instalează utilitare de bază: `bash`, `curl`, `nano`, `htop`
-- instalează **Docker** + `docker compose` și te adaugă în grupul `docker`
-- pornește **Portainer**, o interfață web din care administrezi mini PC-ul:
-  **https://IP-mini-pc:9443**
-  - creezi contul de admin în primele 5 minute (altfel: `doas docker restart portainer`)
-  - de acolo instalezi aplicații (Home Assistant, Jellyfin, Nextcloud, Pi-hole etc.)
-    cu câteva click-uri, din *Templates* sau *Stacks*
-
-Interfață grafică pe monitorul mini PC-ului (opțional):
-
-```sh
-doas env DESKTOP=xfce sh setup-server.sh     # sau gnome / plasma / mate
+doas env DESKTOP=xfce sh setup.sh     # sau gnome / plasma / mate / sway
 doas reboot
 ```
 
-| Variabilă     | Implicit           | Descriere                                    |
-|---------------|--------------------|----------------------------------------------|
-| `TZ_NAME`     | `Europe/Bucharest` | fusul orar                                   |
-| `DOCKER_USER` | utilizatorul tău   | cine poate folosi docker fără `doas`         |
-| `PORTAINER`   | `1`                | `0` = fără interfață web                     |
-| `DESKTOP`     | –                  | `xfce`, `gnome`, `plasma`, `mate`, `sway`    |
+## După rulare
+
+1. Testează SSH-ul dintr-un **terminal nou** înainte să-l închizi pe cel vechi.
+2. Deschide **https://IP-mini-pc:9443** în primele 5 minute și creează contul de admin
+   (altfel: `doas docker restart portainer`). Avertismentul de certificat este normal.
+3. Delogează-te și loghează-te din nou, ca să poți folosi `docker` fără `doas`.
+
+Python — folosește medii virtuale (pe Alpine `pip install` global este blocat):
+
+```sh
+python3 -m venv ~/venv && . ~/venv/bin/activate && pip install requests
+pipx install httpie            # pentru aplicații de linie de comandă
+```
+
+> Docker ocolește `ufw` pentru porturile containerelor. Nu deschide portul 9443
+> spre internet din router.
+
+## Opțiuni
+
+| Variabilă   | Implicit                   | Descriere                                   |
+|-------------|----------------------------|---------------------------------------------|
+| `NEW_USER`  | cel care a rulat `doas`    | utilizatorul tău                            |
+| `PUBKEY`    | –                          | cheie publică SSH de adăugat                |
+| `SSH_PORT`  | cel configurat deja / `22` | portul SSH                                  |
+| `TZ_NAME`   | `Europe/Bucharest`         | fusul orar                                  |
+| `FIREWALL`  | `1`                        | `0` = fără ufw                              |
+| `FAIL2BAN`  | `1`                        | `0` = fără fail2ban                         |
+| `PYTHON`    | `1`                        | `0` = fără Python                           |
+| `DOCKER`    | `1`                        | `0` = fără Docker (și fără Portainer)       |
+| `PORTAINER` | `1`                        | `0` = fără interfață web                    |
+| `DESKTOP`   | –                          | `xfce`, `gnome`, `plasma`, `mate`, `sway`   |
+
+Configurația SSH: `/etc/ssh/sshd_config.d/10-minipc.conf`.
