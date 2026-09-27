@@ -287,9 +287,12 @@ echo "  Ora:        $(date)"
 [ "$AUTO_UPDATE" = 1 ] && echo "  Update:     automat, zilnic (log: /var/log/auto-update.log)"
 if [ "$PORTAINER" = 1 ]; then
     echo "  Interfata:  https://$IP:9443"
+    sleep 3
+    TOKEN_LINE="$(docker logs portainer 2>&1 | grep -i 'token' | tail -n 1 || true)"
+    [ -n "$TOKEN_LINE" ] && echo "  Setup token (din logul Portainer): $TOKEN_LINE"
     echo
     warn "Deschide interfata in 5 minute si creeaza contul de admin."
-    warn "Daca expira: doas docker restart portainer"
+    warn "Daca expira: doas docker restart portainer (token nou: doas docker logs portainer)"
     warn "Browserul va avertiza de certificat (e auto-semnat) - alege 'Continua'."
 fi
 echo
