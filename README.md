@@ -15,10 +15,9 @@ rulat o singură dată.
 | Ora              | fus orar `Europe/Bucharest`, sincronizare automată (chrony)               |
 | Utilitare        | `bash`, `curl`, `git`, `nano`, `htop`                                     |
 | **Python**       | `python3`, `pip`, `venv`, `pipx`, compilatoare pentru pachete native      |
-| **Docker**       | `docker` + `docker compose`, utilizabil fără `doas`                       |
-| **Interfață web**| Portainer pe **https://IP-mini-pc:9443**                                  |
+| Docker           | opțional (`DOCKER=1`): `docker` + `docker compose` + Portainer pe **https://IP-mini-pc:9443** |
 | Actualizări      | automate, zilnic, prin `crond` (log: `/var/log/auto-update.log`)          |
-| Desktop          | opțional: interfață grafică pe monitorul mini PC-ului                     |
+| Desktop          | `desktop.sh`: XFCE + Remote Desktop din Windows                           |
 
 Parola SSH se dezactivează **doar dacă există o cheie**, ca să nu rămâi blocat pe dinafară.
 Scriptul poate fi rulat de mai multe ori fără probleme.
@@ -57,9 +56,8 @@ Din Windows: **Remote Desktop Connection** (`mstsc`) → IP-ul mini PC-ului → 
 ## După rulare
 
 1. Testează SSH-ul dintr-un **terminal nou** înainte să-l închizi pe cel vechi.
-2. Deschide **https://IP-mini-pc:9443** în primele 5 minute și creează contul de admin
-   (altfel: `doas docker restart portainer`). Avertismentul de certificat este normal.
-3. Delogează-te și loghează-te din nou, ca să poți folosi `docker` fără `doas`.
+2. Doar cu `DOCKER=1`: deschide **https://IP-mini-pc:9443**, creează contul de admin cu tokenul din
+   `doas docker logs portainer`, apoi delogează-te și loghează-te din nou (docker fără `doas`).
 
 Python — folosește medii virtuale (pe Alpine `pip install` global este blocat):
 
@@ -71,7 +69,7 @@ pipx install httpie            # pentru aplicații de linie de comandă
 Actualizările automate nu repornesc niciodată mini PC-ul. Dacă se instalează un kernel nou,
 apare mesajul în `/var/log/auto-update.log` și fișierul `/run/reboot-required`; atunci rulezi `doas reboot`.
 
-> Docker ocolește `ufw` pentru porturile containerelor. Nu deschide portul 9443
+> Cu `DOCKER=1`: Docker ocolește `ufw` pentru porturile containerelor. Nu deschide portul 9443
 > spre internet din router.
 
 ## Opțiuni
@@ -85,8 +83,8 @@ apare mesajul în `/var/log/auto-update.log` și fișierul `/run/reboot-required
 | `FIREWALL`  | `1`                        | `0` = fără ufw                              |
 | `FAIL2BAN`  | `1`                        | `0` = fără fail2ban                         |
 | `PYTHON`    | `1`                        | `0` = fără Python                           |
-| `DOCKER`    | `1`                        | `0` = fără Docker (și fără Portainer)       |
-| `PORTAINER` | `1`                        | `0` = fără interfață web                    |
+| `DOCKER`    | `0`                        | `1` = Docker + Portainer                    |
+| `PORTAINER` | = `DOCKER`                 | `0` = Docker fără interfață web             |
 | `WEB_PORTS` | `1`                        | `0` = nu deschide porturile 80 și 443       |
 | `AUTO_UPDATE` | `1`                      | `0` = fără actualizări automate             |
 | `DESKTOP`   | –                          | `xfce`, `gnome`, `plasma`, `mate`, `sway`   |

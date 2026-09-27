@@ -15,8 +15,8 @@
 #   FIREWALL    1 = ufw (implicit 1)
 #   FAIL2BAN    1 = fail2ban (implicit 1)
 #   PYTHON      1 = Python 3 + pip + venv + pipx (implicit 1)
-#   DOCKER      1 = Docker + docker compose (implicit 1)
-#   PORTAINER   1 = interfata web pe https://IP:9443 (implicit 1, necesita DOCKER=1)
+#   DOCKER      1 = Docker + docker compose (implicit 0)
+#   PORTAINER   1 = interfata web pe https://IP:9443 (implicit = DOCKER, necesita DOCKER=1)
 #   WEB_PORTS   1 = deschide porturile 80 si 443 pentru aplicatii (implicit 1)
 #   AUTO_UPDATE 1 = actualizari automate zilnice ale pachetelor (implicit 1)
 #   DESKTOP     xfce / gnome / plasma / mate / sway = interfata grafica pe monitor
@@ -37,8 +37,8 @@ TZ_NAME="${TZ_NAME:-Europe/Bucharest}"
 FIREWALL="${FIREWALL:-1}"
 FAIL2BAN="${FAIL2BAN:-1}"
 PYTHON="${PYTHON:-1}"
-DOCKER="${DOCKER:-1}"
-PORTAINER="${PORTAINER:-1}"
+DOCKER="${DOCKER:-0}"
+PORTAINER="${PORTAINER:-$DOCKER}"
 WEB_PORTS="${WEB_PORTS:-1}"
 AUTO_UPDATE="${AUTO_UPDATE:-1}"
 DESKTOP="${DESKTOP:-}"
