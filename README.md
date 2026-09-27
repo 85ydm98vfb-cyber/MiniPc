@@ -60,10 +60,11 @@ Pe https://www.duckdns.org îți faci un subdomeniu și copiezi tokenul.
 
 ```sh
 wget -O public-web.sh https://raw.githubusercontent.com/85ydm98vfb-cyber/MiniPc/claude/mini-pc-ssh-config-jx93hs/public-web.sh
-doas env DUCK_DOMAIN=subdomeniul-tau DUCK_TOKEN=tokenul-tau sh public-web.sh
+doas env SITES="psgames:8095 watchtime-alex:8765" DUCK_TOKEN=tokenul-tau sh public-web.sh
 ```
 
-Aplicația: **https://subdomeniul-tau.duckdns.org** — certificat Let's Encrypt, reînnoit automat de Caddy.
+Fiecare aplicație primește adresa ei (**https://psgames.duckdns.org**, ...) — certificate Let's Encrypt,
+reînnoite automat de Caddy. La o nouă rulare tokenul se ia din `/etc/duckdns.conf`.
 
 ### Acces de oriunde (date mobile) cu Tailscale
 
