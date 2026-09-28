@@ -113,6 +113,7 @@ Backup-ul automat scrie doar pe un stick care are deja folderul `minipc-backup/`
 scriptul îl reconectează singur înainte de backup. Log: `/var/log/minipc-backup.log`.
 
 **Restaurare** (ex. Watch Time): `doas rc-service watchtime stop`, copiezi `watchtime.db` de pe stick în
-`/opt/watchtime/data/` (și `vapid.pem`, ca notificările să meargă fără re-abonare; `doas chown watchtime:watchtime` pe fișiere),
-apoi `doas rc-service watchtime start`.
+`/opt/watchtime/data/`, **ștergi** `watchtime.db-wal` și `watchtime.db-shm` de acolo (altfel se amestecă cu baza veche),
+copiezi și `vapid.pem` (notificările merg fără re-abonare), `doas chown watchtime:watchtime` pe fișiere,
+apoi `doas rc-service watchtime start`. Pașii exacți, cu teste: ghidul PDF de backup.
 La PS Games la fel, cu fișierele `.json` în `/opt/ps-games/data/` și `psgames:psgames`.
