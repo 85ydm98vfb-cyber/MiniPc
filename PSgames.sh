@@ -166,6 +166,34 @@ EOF
     done
 }
 
+# --- Watchdog: reporneste aplicatia daca nu mai raspunde ----------------------
+# (supervise-daemon reporneste doar un proces oprit, nu si unul blocat)
+# $1 = serviciul, $2 = adresa locala care trebuie sa raspunda
+install_watchdog() {
+    mkdir -p /usr/local/sbin /etc/crontabs
+    cat > /usr/local/sbin/app-watchdog <<'WD'
+#!/bin/sh
+# Generat de scripturile MiniPc: app-watchdog SERVICIU URL
+# Daca aplicatia nu raspunde de doua ori la rand (la 30s distanta), o reporneste.
+svc="$1"; url="$2"; log=/var/log/app-watchdog.log
+rc-service "$svc" status >/dev/null 2>&1 || exit 0     # oprita intentionat -> nu ne atingem
+wget -q -T 15 -O /dev/null "$url" 2>/dev/null && exit 0
+sleep 30
+wget -q -T 15 -O /dev/null "$url" 2>/dev/null && exit 0
+echo "$(date '+%F %T') $svc nu raspunde - restart" >> "$log"
+tail -n 30 "/var/log/$svc.log" 2>/dev/null | sed "s/^/    /" >> "$log"
+rc-service "$svc" restart >/dev/null 2>&1
+[ "$(wc -l < "$log")" -gt 2000 ] && tail -n 1000 "$log" > "$log.tmp" && mv "$log.tmp" "$log"
+exit 0
+WD
+    chmod 755 /usr/local/sbin/app-watchdog
+    touch /etc/crontabs/root
+    sed -i "\|app-watchdog $1 |d" /etc/crontabs/root
+    echo "*/5 * * * * /usr/local/sbin/app-watchdog $1 $2" >> /etc/crontabs/root
+    rc-update add crond default >/dev/null
+    rc-service crond restart >/dev/null 2>&1 || true
+}
+
 # =============================================================================
 [ "$(id -u)" -eq 0 ] || die "Ruleaza cu doas:  doas sh PSgames.sh ~/ps-games-server.zip"
 [ -f /etc/alpine-release ] || die "Scriptul este doar pentru Alpine Linux."
@@ -252,6 +280,8 @@ fi
 sleep 2
 rc-service $SVC status >/dev/null 2>&1 || die "Serviciul nu a pornit - vezi: doas tail -n 50 $LOG"
 
+install_watchdog ps-games "http://127.0.0.1:$PORT/login"
+
 [ -n "$DOMAIN" ] && publish "$DOMAIN" "$PORT"
 
 IP="$(lan_ip)"
@@ -262,6 +292,7 @@ echo "  Acasa (Wi-Fi):   http://${IP:-<ip-mini-pc>}:$PORT"
 echo "  Stare:           doas rc-service $SVC status"
 echo "  Restart:         doas rc-service $SVC restart"
 echo "  Log:             doas tail -f $LOG"
+echo "  Watchdog:        verifica la 5 minute; restarturi in /var/log/app-watchdog.log"
 echo "  Schimba parola:  doas su -s /bin/sh psgames -c 'python3 $APP/server.py --set-password' && doas rc-service $SVC restart"
 echo "  Date:            $APP/data  (backup zilnic in $APP/data/backup)"
 exit 0

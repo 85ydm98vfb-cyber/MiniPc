@@ -81,3 +81,6 @@ Adminul Watch Time merge doar de acasă, pe `http://192.168.0.187:8765`.
 | Watch Time       | `watchtime`  | `/opt/watchtime/data`         | `/var/log/watchtime.log` |
 
 Comenzi: `doas rc-service <serviciu> status | restart`, `doas tail -f <log>`.
+
+**Watchdog:** la fiecare 5 minute se verifică dacă fiecare aplicație răspunde; dacă nu (de două ori la rând),
+serviciul e repornit automat. Restarturile, cu ultimele linii din log, sunt în `/var/log/app-watchdog.log`.
