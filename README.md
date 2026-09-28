@@ -8,7 +8,7 @@ Mini PC cu **Alpine Linux**: cinci scripturi, fiecare rulat cu `doas` prin SSH.
 | `PSgames.sh`   | instalează / actualizează **PlayStation Games** (port 8095) și, opțional, adresa `https://…duckdns.org` |
 | `watchtime.sh` | instalează / actualizează **Watch Time** (port 8765) și, opțional, adresa `https://…duckdns.org` |
 | `backup.sh`    | backup pe stick USB pentru datele ambelor aplicații (manual sau automat, lunea) |
-| `power.sh`     | oprire automată seara și pornire dimineața (implicit 23:00 → 06:30) |
+| `power.sh`     | oprire seara / pornire dimineața + fereastra „Program mini PC” pe desktop; backup-ul pe stick cu 30 min înainte de oprire |
 
 Scripturile pot fi rulate de oricâte ori: datele, parolele și setările rămân.
 Codul **Watch Time** e în `apps/watchtime/` (fără date sau chei — acestea rămân doar pe mini PC).
@@ -101,7 +101,7 @@ serviciul e repornit automat. Restarturile, cu ultimele linii din log, sunt în 
 ```sh
 wget -O backup.sh https://raw.githubusercontent.com/85ydm98vfb-cyber/MiniPc/claude/mini-pc-ssh-config-jx93hs/backup.sh
 doas sh backup.sh           # backup acum (prima dată pregătește stick-ul)
-doas sh backup.sh --auto    # + automat în fiecare luni la 22:30
+doas sh backup.sh --auto    # + automat săptămânal (implicit luni), cu 30 min înainte de oprire
 doas sh backup.sh --list    # backup-urile de pe stick
 doas sh backup.sh --no-auto # oprește backup-ul automat
 ```
@@ -119,7 +119,7 @@ copiezi și `vapid.pem` (notificările merg fără re-abonare), `doas chown watc
 apoi `doas rc-service watchtime start`. Pașii exacți, cu teste: ghidul PDF de backup.
 La PS Games la fel, cu fișierele `.json` în `/opt/ps-games/data/` și `psgames:psgames`.
 
-## 4. `power.sh` — oprire seara, pornire dimineața
+## 4. `power.sh` — oprire seara, pornire dimineața + fereastra „Program mini PC”
 
 Pornirea folosește ceasul plăcii (RTC): înainte de oprire se programează ora de pornire.
 **Testează întâi** — dacă placa nu poate porni singură, mini PC-ul rămâne oprit până apeși butonul.
@@ -128,11 +128,15 @@ Pornirea folosește ceasul plăcii (RTC): înainte de oprire se programează ora
 wget -O power.sh https://raw.githubusercontent.com/85ydm98vfb-cyber/MiniPc/claude/mini-pc-ssh-config-jx93hs/power.sh
 doas sh power.sh --check      # ceasul plăcii + programul curent
 doas sh power.sh --test       # se oprește ACUM și pornește singur peste 5 minute
-doas sh power.sh --enable     # oprire 23:00, pornire 06:30 (sau: doas env OFF=22:30 ON=07:00 sh power.sh --enable)
+doas sh power.sh --enable     # activează programul + pune fereastra „Program mini PC” pe desktop
 doas minipc-power --skip      # în seara asta nu se oprește
 doas sh power.sh --disable    # mini PC-ul rămâne pornit mereu
 ```
 
-La `--enable`, treburile de noapte se mută înainte de oprire: actualizări 22:00, întreținere 22:10 / 22:20,
-backup pe stick luni 22:30. Dacă ceasul plăcii nu acceptă programarea, mini PC-ul **nu** se oprește.
-Log: `/var/log/minipc-power.log`.
+**Fereastra „Program mini PC”** (desktop, prin Remote Desktop): ora de oprire și de pornire, ziua backup-ului
+pe stick, „Nu opri în seara asta” și ultimele evenimente. Salvează prin `minipc-power`, care verifică valorile
+(e singura comandă pe care fereastra o poate rula ca root, fără parolă).
+
+Treburile de noapte rulează **înainte de oprire, relativ la ea**: actualizări −60 min, întreținere −50 / −40 min,
+**backup pe stick −30 min** (în ziua aleasă). Implicit: oprire 23:00, pornire 06:30, backup luni 22:30.
+Dacă ceasul plăcii nu acceptă programarea, mini PC-ul **nu** se oprește. Log: `/var/log/minipc-power.log`.
