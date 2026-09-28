@@ -73,6 +73,26 @@ doas env DOMAIN=watch-time sh watchtime.sh ~/watchtime.zip      # tokenul se ia 
 ```
 
 Toate aplicațiile publicate sunt ținute în `/etc/duckdns.conf`; Caddy obține și reînnoiește singur certificatele.
+
+### Domeniul tău propriu (ex. `alex.ro`)
+
+DuckDNS rămâne în spate (ține la zi IP-ul de acasă); domeniul tău arată spre el printr-un **CNAME**.
+La firma de la care ai cumpărat domeniul, în setările DNS, adaugi câte un rând pentru fiecare aplicație:
+
+| Tip   | Nume (host) | Valoare (țintă)           |
+|-------|-------------|---------------------------|
+| CNAME | `jocuri`    | `psgames.duckdns.org`     |
+| CNAME | `seriale`   | `watch-time.duckdns.org`  |
+
+Apoi dai aplicației ambele nume (adresa DuckDNS continuă să meargă):
+
+```sh
+doas env DOMAIN=psgames,jocuri.alex.ro sh PSgames.sh ~/ps-games-server.zip
+doas env DOMAIN=watch-time,seriale.alex.ro sh watchtime.sh ~/watchtime.zip
+```
+
+Scriptul verifică dacă numele arată spre casa ta și spune exact ce CNAME lipsește.
+Domeniul „gol” (`alex.ro`, fără `jocuri.`) nu poate fi CNAME la majoritatea firmelor — folosește subdomenii.
 Adminul Watch Time merge doar de acasă, pe `http://192.168.0.187:8765`.
 
 | Aplicație        | Serviciu     | Date                          | Log |
