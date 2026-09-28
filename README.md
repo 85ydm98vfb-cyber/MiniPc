@@ -1,6 +1,6 @@
 # MiniPc
 
-Mini PC cu **Alpine Linux**: patru scripturi, fiecare rulat cu `doas` prin SSH.
+Mini PC cu **Alpine Linux**: cinci scripturi, fiecare rulat cu `doas` prin SSH.
 
 | Script         | Ce face |
 |----------------|---------|
@@ -8,6 +8,7 @@ Mini PC cu **Alpine Linux**: patru scripturi, fiecare rulat cu `doas` prin SSH.
 | `PSgames.sh`   | instalează / actualizează **PlayStation Games** (port 8095) și, opțional, adresa `https://…duckdns.org` |
 | `watchtime.sh` | instalează / actualizează **Watch Time** (port 8765) și, opțional, adresa `https://…duckdns.org` |
 | `backup.sh`    | backup pe stick USB pentru datele ambelor aplicații (manual sau automat, lunea) |
+| `power.sh`     | oprire automată seara și pornire dimineața (implicit 23:00 → 06:30) |
 
 Scripturile pot fi rulate de oricâte ori: datele, parolele și setările rămân.
 Codul **Watch Time** e în `apps/watchtime/` (fără date sau chei — acestea rămân doar pe mini PC).
@@ -100,7 +101,7 @@ serviciul e repornit automat. Restarturile, cu ultimele linii din log, sunt în 
 ```sh
 wget -O backup.sh https://raw.githubusercontent.com/85ydm98vfb-cyber/MiniPc/claude/mini-pc-ssh-config-jx93hs/backup.sh
 doas sh backup.sh           # backup acum (prima dată pregătește stick-ul)
-doas sh backup.sh --auto    # + automat în fiecare luni la 03:30
+doas sh backup.sh --auto    # + automat în fiecare luni la 22:30
 doas sh backup.sh --list    # backup-urile de pe stick
 doas sh backup.sh --no-auto # oprește backup-ul automat
 ```
@@ -117,3 +118,21 @@ scriptul îl reconectează singur înainte de backup. Log: `/var/log/minipc-back
 copiezi și `vapid.pem` (notificările merg fără re-abonare), `doas chown watchtime:watchtime` pe fișiere,
 apoi `doas rc-service watchtime start`. Pașii exacți, cu teste: ghidul PDF de backup.
 La PS Games la fel, cu fișierele `.json` în `/opt/ps-games/data/` și `psgames:psgames`.
+
+## 4. `power.sh` — oprire seara, pornire dimineața
+
+Pornirea folosește ceasul plăcii (RTC): înainte de oprire se programează ora de pornire.
+**Testează întâi** — dacă placa nu poate porni singură, mini PC-ul rămâne oprit până apeși butonul.
+
+```sh
+wget -O power.sh https://raw.githubusercontent.com/85ydm98vfb-cyber/MiniPc/claude/mini-pc-ssh-config-jx93hs/power.sh
+doas sh power.sh --check      # ceasul plăcii + programul curent
+doas sh power.sh --test       # se oprește ACUM și pornește singur peste 5 minute
+doas sh power.sh --enable     # oprire 23:00, pornire 06:30 (sau: doas env OFF=22:30 ON=07:00 sh power.sh --enable)
+doas minipc-power --skip      # în seara asta nu se oprește
+doas sh power.sh --disable    # mini PC-ul rămâne pornit mereu
+```
+
+La `--enable`, treburile de noapte se mută înainte de oprire: actualizări 22:00, întreținere 22:10 / 22:20,
+backup pe stick luni 22:30. Dacă ceasul plăcii nu acceptă programarea, mini PC-ul **nu** se oprește.
+Log: `/var/log/minipc-power.log`.

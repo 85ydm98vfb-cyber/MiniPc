@@ -3,7 +3,7 @@
 #
 # Utilizare (logat prin SSH cu utilizatorul tau):
 #   doas sh backup.sh               backup acum pe stick (il gaseste singur, apoi il poti scoate)
-#   doas sh backup.sh --auto        + backup automat in fiecare luni la 03:30, daca stick-ul e bagat
+#   doas sh backup.sh --auto        + backup automat in fiecare luni la 22:30, daca stick-ul e bagat
 #   doas sh backup.sh --list        arata backup-urile de pe stick
 #   doas sh backup.sh --no-auto     opreste backup-ul automat
 #
@@ -53,7 +53,7 @@ if [ "$MODE" = --auto ] || [ "$MODE" = --no-auto ]; then
     sed -i "\|$SELF|d" /etc/crontabs/root
     if [ "$MODE" = --auto ]; then
         [ "$(readlink -f "$0")" = "$SELF" ] || install -m 755 "$0" "$SELF"
-        echo "30 3 * * 1 KEEP=$KEEP DETACH=$DETACH $SELF --cron" >> /etc/crontabs/root
+        echo "30 22 * * 1 KEEP=$KEEP DETACH=$DETACH $SELF --cron" >> /etc/crontabs/root
         # la pornirea mini PC-ului stick-ul apare din nou -> il deconectam
         printf '#!/bin/sh\n# Generat de backup.sh: deconecteaza stick-ul de backup la pornire\nDETACH=%s %s --detach >/dev/null 2>&1 &\n' \
             "$DETACH" "$SELF" > "$BOOT"
@@ -61,7 +61,7 @@ if [ "$MODE" = --auto ] || [ "$MODE" = --no-auto ]; then
         rc-update add local default >/dev/null 2>&1 || true
         rc-update add crond default >/dev/null
         rc-service crond restart >/dev/null 2>&1 || true
-        log "Backup automat activat: in fiecare luni la 03:30 (log: $LOG)."
+        log "Backup automat activat: in fiecare luni la 22:30 (log: $LOG)."
         echo "   Acum fac si un backup, ca sa pregatesc stick-ul."
         MODE=now
     else
