@@ -10,9 +10,7 @@
 # Variabile (optionale):
 #   DATA        fisierul PlayStation_Games.json de incarcat (inlocuieste datele de pe server)
 #   PORT        portul aplicatiei (implicit 8095)
-#   DOMAIN      adresa de oriunde; nume separate prin virgula:
-#                 psgames                  -> https://psgames.duckdns.org
-#                 psgames,jocuri.alex.ro   -> si domeniul tau (in DNS: CNAME jocuri.alex.ro -> psgames.duckdns.org)
+#   DOMAIN      subdomeniul DuckDNS pentru acces de oriunde (fara .duckdns.org)
 #   DUCK_TOKEN  tokenul DuckDNS (doar prima data; apoi se ia din /etc/duckdns.conf)
 #
 # Datele si parola raman neatinse la actualizare. Backup zilnic automat in /opt/ps-games/data/backup.
@@ -62,29 +60,15 @@ find_src() {
 }
 
 # --- Publicare pe internet: DuckDNS + Caddy (HTTPS) ----------------------------
-# $1 = numele aplicatiei, separate prin virgula:
-#        psgames                     -> https://psgames.duckdns.org
-#        jocuri.alex.ro              -> domeniul tau (in DNS: CNAME catre un subdomeniu duckdns)
-#        psgames,jocuri.alex.ro      -> ambele
-# $2 = portul aplicatiei
-# Toate aplicatiile publicate sunt tinute in /etc/duckdns.conf (SITES = nume:port ...).
-# DuckDNS tine la zi IP-ul de acasa; domeniile proprii arata spre el prin CNAME.
-host_of() { case "$1" in *.*) echo "$1" ;; *) echo "$1.duckdns.org" ;; esac; }
-
+# $1 = subdomeniu DuckDNS (fara .duckdns.org), $2 = portul aplicatiei
+# Toate aplicatiile publicate sunt tinute in /etc/duckdns.conf (SITES).
 publish() {
-    port="$2"; names=
-    for n in $(echo "$1" | tr ',' ' '); do
-        n="$(echo "$n" | tr 'A-Z' 'a-z')"
-        n="${n#https://}"; n="${n#http://}"; n="${n%%/*}"; n="${n%.}"; n="${n%.duckdns.org}"
-        case "$n" in
-            ''|*[!a-z0-9.-]*|.*|*..*) die "Nume invalid in DOMAIN: '$n'" ;;
-        esac
-        names="$names $n"
-    done
-    names="${names# }"
-    [ -n "$names" ] || die "DOMAIN e gol."
-    PUBLIC_URL=
-    for n in $names; do PUBLIC_URL="${PUBLIC_URL:+$PUBLIC_URL  }https://$(host_of "$n")"; done
+    dom="$1"; port="$2"
+    dom="${dom#https://}"; dom="${dom#http://}"; dom="${dom%%/*}"; dom="${dom%.duckdns.org}"
+    PUBLIC_URL="https://$dom.duckdns.org"
+    case "$dom" in
+        ''|*[!a-z0-9-]*) die "DOMAIN invalid: '$dom' (doar litere mici, cifre si '-')." ;;
+    esac
 
     conf=/etc/duckdns.conf
     sites=; token=
@@ -102,22 +86,16 @@ publish() {
         *[!a-zA-Z0-9-]*) die "DUCK_TOKEN invalid." ;;
     esac
 
-    # numele vechi ale aplicatiei (acelasi port) si aceleasi nume la alta aplicatie -> inlocuite
+    # aplicatia asta (acelasi port) sau acelasi subdomeniu -> inlocuite
     new=
     for s in $sites; do
+        [ "${s%%:*}" = "$dom" ] && continue
         [ "${s##*:}" = "$port" ] && continue
-        skip=0
-        for n in $names; do [ "${s%:*}" = "$n" ] && skip=1; done
-        [ "$skip" = 1 ] || new="$new $s"
+        new="$new $s"
     done
-    for n in $names; do new="$new $n:$port"; done
-    sites="${new# }"
-
+    sites="${new# } $dom:$port"; sites="${sites# }"
     domains=
-    for s in $sites; do
-        case "${s%:*}" in *.*) ;; *) domains="${domains:+$domains,}${s%:*}" ;; esac
-    done
-    [ -n "$domains" ] || die "E nevoie de cel putin un subdomeniu DuckDNS (el tine la zi IP-ul de acasa). Ex: DOMAIN=psgames,jocuri.alex.ro"
+    for s in $sites; do domains="${domains:+$domains,}${s%%:*}"; done
 
     log "DuckDNS: $domains"
     # verificam intai subdomeniile si tokenul; config-ul se salveaza doar daca DuckDNS raspunde OK
@@ -142,21 +120,6 @@ EOF
     rc-service crond start >/dev/null 2>&1 || true
     /etc/periodic/15min/duckdns
 
-    # domeniile proprii trebuie sa arate spre casa (CNAME catre duckdns), altfel nu primesc certificat
-    target="${domains%%,*}"
-    for n in $names; do case "$n" in *.*) ;; *) target="$n"; break ;; esac; done
-    target="$target.duckdns.org"
-    home_ip="$(nslookup "$target" 2>/dev/null | awk '/^Address/ && !/#53/ {print $NF}' | tail -n 1)"
-    for n in $names; do
-        case "$n" in *.*) ;; *) continue ;; esac
-        ip="$(nslookup "$n" 2>/dev/null | awk '/^Address/ && !/#53/ {print $NF}' | tail -n 1)"
-        if [ -z "$ip" ]; then
-            warn "$n nu exista inca in DNS. Pune la firma de domeniu: CNAME $n -> $target"
-        elif [ -n "$home_ip" ] && [ "$ip" != "$home_ip" ]; then
-            warn "$n arata spre $ip, dar casa ta e $home_ip. Verifica CNAME-ul: $n -> $target"
-        fi
-    done
-
     log "Caddy: HTTPS pentru toate aplicatiile publicate"
     command -v caddy >/dev/null || apk add caddy
     mkdir -p /etc/caddy
@@ -167,7 +130,7 @@ EOF
         for s in $sites; do
             cat <<EOF
 
-$(host_of "${s%:*}") {
+${s%%:*}.duckdns.org {
 	encode gzip
 	reverse_proxy 127.0.0.1:${s##*:}
 	header {
@@ -189,20 +152,17 @@ EOF
         ufw allow 443/tcp comment 'HTTPS' >/dev/null
     fi
 
-    # nu testam adresele de pe mini PC: multe routere nu permit accesul la propriul IP public
-    for n in $names; do
-        h="$(host_of "$n")"
-        log "Astept certificatul HTTPS pentru $h (pana la 90 de secunde)"
-        i=0
-        until find /var/lib/caddy /root/.local/share/caddy -name "$h.crt" 2>/dev/null | grep -q .; do
-            i=$((i + 1))
-            if [ "$i" -gt 18 ]; then
-                warn "Certificatul pentru $h nu a fost obtinut inca (DNS / port forwarding 80+443?)."
-                warn "Caddy reincearca singur. Stare: doas rc-service caddy status"
-                break
-            fi
-            sleep 5
-        done
+    # nu testam adresa de pe mini PC: multe routere nu permit accesul la propriul IP public
+    log "Astept certificatul HTTPS pentru $dom.duckdns.org (pana la 90 de secunde)"
+    i=0
+    until find /var/lib/caddy /root/.local/share/caddy -name "$dom.duckdns.org.crt" 2>/dev/null | grep -q .; do
+        i=$((i + 1))
+        if [ "$i" -gt 18 ]; then
+            warn "Certificatul nu a fost obtinut inca. Verifica port forwarding-ul 80 si 443 in router."
+            warn "Caddy reincearca singur. Stare: doas rc-service caddy status"
+            return 0
+        fi
+        sleep 5
     done
 }
 
