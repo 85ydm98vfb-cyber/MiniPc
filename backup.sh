@@ -228,6 +228,8 @@ dst.close(); src.close()
 sys.exit(0 if ok == "ok" else 1)
 PY
     [ -f /opt/watchtime/config.json ] && cp -p /opt/watchtime/config.json "$TMP/watchtime/"
+    # cheia pentru notificari: fara ea, dupa o restaurare telefoanele trebuie abonate din nou
+    [ -f /opt/watchtime/data/vapid.pem ] && cp -p /opt/watchtime/data/vapid.pem "$TMP/watchtime/"
     # + cate un JSON pe cont, in formatul aplicatiei (Profil -> Copie de siguranta),
     #   generat din copia de mai sus; se importa din Profil -> Importa date
     python3 - "$TMP/watchtime/watchtime.db" "$TMP/watchtime/conturi" <<'PY' || warn "Nu am putut genera JSON-urile pe conturi (baza .db e salvata)."

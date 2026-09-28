@@ -106,12 +106,13 @@ doas sh backup.sh --no-auto # oprește backup-ul automat
 ```
 
 Pe stick (FAT32, exFAT sau NTFS): `minipc-backup/AAAA-LL-ZZ_HH-MM/` cu `ps-games/*.json` și
-`watchtime/watchtime.db` + `config.json` + `watchtime/conturi/<utilizator>.json` (câte un JSON pe cont,
+`watchtime/watchtime.db` + `config.json` + `vapid.pem` (cheia notificărilor) + `watchtime/conturi/<utilizator>.json` (câte un JSON pe cont,
 în formatul aplicației — se importă din Watch Time: **Profil → Importă date**). Fiecare copie e verificată (`SHA256SUMS`); se păstrează ultimele 30.
 Backup-ul automat scrie doar pe un stick care are deja folderul `minipc-backup/`.
 Între backup-uri stick-ul e deconectat din sistem (rămâne în port, dar nu e vizibil și nu se scrie nimic pe el);
 scriptul îl reconectează singur înainte de backup. Log: `/var/log/minipc-backup.log`.
 
 **Restaurare** (ex. Watch Time): `doas rc-service watchtime stop`, copiezi `watchtime.db` de pe stick în
-`/opt/watchtime/data/` (`doas chown watchtime:watchtime` pe fișier), apoi `doas rc-service watchtime start`.
+`/opt/watchtime/data/` (și `vapid.pem`, ca notificările să meargă fără re-abonare; `doas chown watchtime:watchtime` pe fișiere),
+apoi `doas rc-service watchtime start`.
 La PS Games la fel, cu fișierele `.json` în `/opt/ps-games/data/` și `psgames:psgames`.
