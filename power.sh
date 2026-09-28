@@ -233,88 +233,97 @@ def fmt(m):
 class App:
     def __init__(self, root):
         self.root = root
+        self.st = {}
         root.title("Program mini PC")
         root.configure(bg=BG)
-        root.resizable(False, False)
+        root.minsize(760, 400)
         st = ttk.Style()
         st.theme_use("clam")
-        base = ("DejaVu Sans", 11)
-        st.configure(".", font=base, background=BG, foreground=INK)
+        st.configure(".", font=("DejaVu Sans", 10), background=BG, foreground=INK)
         st.configure("Card.TFrame", background=CARD)
         st.configure("Card.TLabel", background=CARD)
-        st.configure("Muted.TLabel", background=CARD, foreground=MUTED, font=("DejaVu Sans", 10))
-        st.configure("Title.TLabel", background=BG, font=("DejaVu Sans", 17, "bold"))
-        st.configure("H.TLabel", background=CARD, font=("DejaVu Sans", 12, "bold"))
-        st.configure("Card.TCheckbutton", background=CARD, font=("DejaVu Sans", 11, "bold"))
-        st.configure("Accent.TButton", background=ACCENT, foreground="white", font=("DejaVu Sans", 11, "bold"), padding=(14, 7))
+        st.configure("Muted.TLabel", background=CARD, foreground=MUTED, font=("DejaVu Sans", 9))
+        st.configure("Title.TLabel", background=BG, font=("DejaVu Sans", 14, "bold"))
+        st.configure("Sub.TLabel", background=BG, foreground=MUTED, font=("DejaVu Sans", 9))
+        st.configure("H.TLabel", background=CARD, font=("DejaVu Sans", 10, "bold"))
+        st.configure("Card.TCheckbutton", background=CARD, font=("DejaVu Sans", 10, "bold"))
+        st.configure("Accent.TButton", background=ACCENT, foreground="white", font=("DejaVu Sans", 10, "bold"), padding=(12, 5))
         st.map("Accent.TButton", background=[("active", "#2559b3")])
-        st.configure("TButton", padding=(12, 7))
+        st.configure("TButton", padding=(10, 5))
 
-        wrap = ttk.Frame(root, padding=18)
+        wrap = ttk.Frame(root, padding=(14, 10, 14, 10))
         wrap.pack(fill="both", expand=True)
-        ttk.Label(wrap, text="Program mini PC", style="Title.TLabel").pack(anchor="w")
-        ttk.Label(wrap, text="Oprire seara, pornire dimineața și backup-ul pe stick.",
-                  foreground=MUTED).pack(anchor="w", pady=(0, 12))
+        head = ttk.Frame(wrap)
+        head.pack(fill="x", pady=(0, 8))
+        ttk.Label(head, text="Program mini PC", style="Title.TLabel").pack(side="left")
+        ttk.Label(head, text="  oprire seara, pornire dimineața, backup pe stick", style="Sub.TLabel").pack(side="left", pady=(4, 0))
 
-        # --- oprire / pornire
-        c1 = self.card(wrap)
+        cols = ttk.Frame(wrap)
+        cols.pack(fill="both", expand=True)
+        cols.columnconfigure(0, weight=0)
+        cols.columnconfigure(1, weight=1)
+        left = ttk.Frame(cols)
+        left.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        right = ttk.Frame(cols)
+        right.grid(row=0, column=1, sticky="nsew")
+
+        # --- stanga: oprire / pornire + backup
+        c1 = self.card(left)
         self.enabled = tk.BooleanVar()
         ttk.Checkbutton(c1, text="Oprește și pornește automat", variable=self.enabled, style="Card.TCheckbutton",
-                        command=self.preview).grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 10))
+                        command=self.preview).grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 6))
         self.off_h, self.off_m = self.time_row(c1, 1, "Oprire la")
         self.on_h, self.on_m = self.time_row(c1, 2, "Pornire la")
 
-        # --- backup
-        c2 = self.card(wrap)
+        c2 = self.card(left)
         ttk.Label(c2, text="Backup pe stick", style="H.TLabel").grid(row=0, column=0, columnspan=3, sticky="w")
-        ttk.Label(c2, text="Ziua", style="Card.TLabel").grid(row=1, column=0, sticky="w", pady=(8, 0))
-        self.day = ttk.Combobox(c2, values=DAYS, state="readonly", width=12)
-        self.day.grid(row=1, column=1, sticky="w", padx=(10, 0), pady=(8, 0))
+        ttk.Label(c2, text="Ziua", style="Card.TLabel").grid(row=1, column=0, sticky="w", pady=(6, 0))
+        self.day = ttk.Combobox(c2, values=DAYS, state="readonly", width=11)
+        self.day.grid(row=1, column=1, sticky="w", padx=(8, 0), pady=(6, 0))
         self.day.bind("<<ComboboxSelected>>", lambda e: self.preview())
         self.backup_at = ttk.Label(c2, text="", style="Card.TLabel")
-        self.backup_at.grid(row=1, column=2, sticky="w", padx=(12, 0), pady=(8, 0))
-        ttk.Label(c2, text="Backup-ul se face mereu cu 30 de minute înainte de oprire.",
-                  style="Muted.TLabel").grid(row=2, column=0, columnspan=3, sticky="w", pady=(6, 0))
+        self.backup_at.grid(row=1, column=2, sticky="w", padx=(10, 0), pady=(6, 0))
+        ttk.Label(c2, text="Mereu cu 30 de minute înainte de oprire.",
+                  style="Muted.TLabel").grid(row=2, column=0, columnspan=3, sticky="w", pady=(4, 0))
 
-        # --- programul serii
-        c3 = self.card(wrap)
+        # --- dreapta: programul serii + ultimele evenimente
+        c3 = self.card(right)
         ttk.Label(c3, text="Programul serii", style="H.TLabel").pack(anchor="w")
-        self.plan = ttk.Label(c3, text="", style="Card.TLabel", justify="left", font=("DejaVu Sans Mono", 10))
-        self.plan.pack(anchor="w", pady=(6, 0))
+        self.plan = ttk.Label(c3, text="", style="Card.TLabel", justify="left", font=("DejaVu Sans Mono", 9))
+        self.plan.pack(anchor="w", pady=(4, 0))
+        c4 = self.card(right, expand=True)
+        ttk.Label(c4, text="Ultimele evenimente", style="H.TLabel").pack(anchor="w")
+        self.events = ttk.Label(c4, text="", style="Muted.TLabel", justify="left", wraplength=430)
+        self.events.pack(anchor="w", pady=(4, 0))
+        c4.bind("<Configure>", lambda e: self.events.configure(wraplength=max(200, e.width - 24)))
 
-        # --- butoane
+        # --- jos: butoane + mesaj
         bar = ttk.Frame(wrap)
-        bar.pack(fill="x", pady=(4, 8))
+        bar.pack(fill="x", pady=(2, 0))
         ttk.Button(bar, text="Salvează", style="Accent.TButton", command=self.save).pack(side="left")
         self.skip_btn = ttk.Button(bar, text="Nu opri în seara asta", command=self.toggle_skip)
         self.skip_btn.pack(side="left", padx=8)
         ttk.Button(bar, text="Reîmprospătează", command=self.load).pack(side="right")
-        self.msg = ttk.Label(wrap, text="", wraplength=470)
-        self.msg.pack(anchor="w", pady=(0, 8))
-
-        # --- ultimele evenimente
-        c4 = self.card(wrap)
-        ttk.Label(c4, text="Ultimele evenimente", style="H.TLabel").pack(anchor="w")
-        self.events = ttk.Label(c4, text="", style="Muted.TLabel", justify="left", wraplength=470)
-        self.events.pack(anchor="w", pady=(6, 0))
+        self.msg = ttk.Label(wrap, text="", wraplength=720)
+        self.msg.pack(anchor="w", pady=(6, 0))
 
         for v in (self.off_h, self.off_m, self.on_h, self.on_m):
             v.trace_add("write", lambda *a: self.preview())
         self.load()
 
-    def card(self, parent):
-        f = ttk.Frame(parent, style="Card.TFrame", padding=14)
-        f.pack(fill="x", pady=(0, 10))
+    def card(self, parent, expand=False):
+        f = ttk.Frame(parent, style="Card.TFrame", padding=(12, 9))
+        f.pack(fill="both" if expand else "x", expand=expand, pady=(0, 8))
         return f
 
     def time_row(self, parent, row, label):
-        ttk.Label(parent, text=label, style="Card.TLabel", width=11).grid(row=row, column=0, sticky="w", pady=3)
+        ttk.Label(parent, text=label, style="Card.TLabel", width=10).grid(row=row, column=0, sticky="w", pady=2)
         h, m = tk.StringVar(), tk.StringVar()
         ttk.Spinbox(parent, from_=0, to=23, wrap=True, width=4, format="%02.0f", textvariable=h,
-                    justify="center").grid(row=row, column=1, pady=3)
+                    justify="center").grid(row=row, column=1, pady=2)
         ttk.Label(parent, text=":", style="Card.TLabel").grid(row=row, column=2, padx=3)
         ttk.Spinbox(parent, from_=0, to=55, increment=5, wrap=True, width=4, format="%02.0f", textvariable=m,
-                    justify="center").grid(row=row, column=3, pady=3)
+                    justify="center").grid(row=row, column=3, pady=2)
         return h, m
 
     def read_time(self, h, m):
