@@ -13,6 +13,12 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 PY="$(command -v python3)"
 
+# pachet pentru notificari (optional: fara el aplicatia merge, doar fara notificari)
+if ! "$PY" -c "import cryptography" >/dev/null 2>&1; then
+  if [ -f /etc/alpine-release ]; then $ROOT apk add py3-cryptography || true
+  else $ROOT apt install -y python3-cryptography || true; fi
+fi
+
 # config.json (cheia TMDB se poate pune si mai tarziu, din aplicatie: admin -> Setari)
 if [ ! -f "$DIR/config.json" ]; then
   printf "Cheia TMDB (Enter ca s-o pui mai tarziu din Setari, ca admin): "

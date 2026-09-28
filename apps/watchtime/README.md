@@ -93,6 +93,16 @@ Importul rulează pe server, așa că poți închide pagina. Îl poți repeta f�
 Toate serialele și filmele tale, pe categorii (Urmăresc, Rewatched, De văzut, Terminate, Abandonate;
 filme De văzut / Văzut). Atingi o categorie și vezi toate titlurile din ea.
 
+## Notificări
+
+Serverul verifică **la 11:30 și 18:30** (orele se schimbă din admin → Setări) dacă au apărut episoade noi
+la serialele tale sau filme din lista De văzut, și trimite o notificare pe telefon.
+
+- Pe mini PC trebuie pachetul `py3-cryptography` (îl instalează `install.sh`, sau manual: `doas apk add py3-cryptography`).
+- Pe iPhone (iOS 16.4+): deschide adresa **https** în Safari → Share → Add to Home Screen, deschide Watch Time
+  de pe ecran, apoi **Profil → Notificări → Activează**.
+- Fiecare utilizator alege ce primește (episoade / filme) și poate trimite o notificare de test.
+
 ## Rewatch și vizionări multiple
 
 - Un episod bifat se poate marca **văzut din nou** (2×, 3×, …): atinge bifa verde.

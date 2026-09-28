@@ -201,6 +201,11 @@ find_src "${1:-}" server.py
 log "Instalez Watch Time din $SRC"
 
 command -v python3 >/dev/null || apk add python3
+# notificarile (push.py) au nevoie de 'cryptography'; fara el aplicatia merge, doar fara notificari
+if grep -q 'cryptography' "$SRC"/*.py 2>/dev/null && ! python3 -c 'import cryptography' 2>/dev/null; then
+    log "Instalez py3-cryptography (pentru notificari)"
+    apk add py3-cryptography || warn "Nu am putut instala py3-cryptography - notificarile vor fi dezactivate."
+fi
 
 # --- oprește o instalare facuta cu install.sh din arhiva (alt folder / alt utilizator) --
 if [ -f /etc/init.d/$SVC ] && ! grep -q '/opt/watchtime/server.py' /etc/init.d/$SVC; then
@@ -216,7 +221,11 @@ fi
 
 # --- fisierele aplicatiei ------------------------------------------------------
 mkdir -p "$APP/static" "$APP/data"
-install -m 644 "$SRC/server.py" "$APP/server.py"
+# toate modulele Python ale aplicatiei (server.py, push.py, ...)
+for f in "$SRC"/*.py; do
+    install -m 644 "$f" "$APP/"
+done
+rm -rf "$APP/__pycache__"
 cp -R "$SRC/static/." "$APP/static/"
 chmod -R a+rX "$APP/static"
 

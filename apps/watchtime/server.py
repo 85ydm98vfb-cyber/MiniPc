@@ -24,6 +24,8 @@ from concurrent.futures import ThreadPoolExecutor
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import push
+
 BASE = os.path.dirname(os.path.abspath(__file__))
 CFG_PATH = os.path.join(BASE, "config.json")
 DB_PATH = os.path.join(BASE, "data", "watchtime.db")
@@ -37,6 +39,7 @@ mimetypes.add_type("application/manifest+json", ".webmanifest")
 def load_cfg():
     cfg = {"tmdb_key": "", "language": "en-US", "port": 8765, "host": "0.0.0.0",
            "session_days": 365, "max_login_fails": 8,
+           "notify_times": ["11:30", "18:30"], "timezone": "", "push_contact": "mailto:watchtime@example.com",
            "lan_networks": ["192.168.0.0/16", "10.0.0.0/8", "172.16.0.0/12", "127.0.0.0/8", "::1/128", "fe80::/10"]}
     if os.path.exists(CFG_PATH):
         with open(CFG_PATH, encoding="utf-8") as f:
@@ -73,10 +76,19 @@ CREATE TABLE IF NOT EXISTS plays(
   watched_at TEXT, runtime INTEGER);
 CREATE INDEX IF NOT EXISTS plays_idx ON plays(user_id, type, tmdb_id);
 CREATE TABLE IF NOT EXISTS cache(key TEXT PRIMARY KEY, body TEXT, fetched REAL);
+CREATE TABLE IF NOT EXISTS push_subs(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, endpoint TEXT UNIQUE,
+  p256dh TEXT, auth TEXT, device TEXT, created_at TEXT);
+CREATE TABLE IF NOT EXISTS notify_sent(
+  user_id INTEGER, kind TEXT, tmdb_id INTEGER, season INTEGER, episode INTEGER, sent_at TEXT,
+  PRIMARY KEY(user_id, kind, tmdb_id, season, episode));
+CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
 """)
-if "lang" not in [r[1] for r in DB.execute("PRAGMA table_info(users)")]:
-    DB.execute("ALTER TABLE users ADD COLUMN lang TEXT")
-    DB.commit()
+_ucols = [r[1] for r in DB.execute("PRAGMA table_info(users)")]
+for _c, _def in (("lang", "TEXT"), ("notify_eps", "INTEGER DEFAULT 1"), ("notify_movies", "INTEGER DEFAULT 1")):
+    if _c not in _ucols:
+        DB.execute(f"ALTER TABLE users ADD COLUMN {_c} {_def}")
+DB.commit()
 
 TV_STATUSES = ("watching", "plan", "completed", "stopped")
 MOVIE_STATUSES = ("watchlist", "watched")
@@ -111,6 +123,9 @@ MESSAGES = {
     "setup_done": ("Configurarea a fost deja facuta", "Setup has already been done"),
     "setup_wifi": ("Configurarea initiala se face doar din Wi-Fi-ul de acasa", "Initial setup only works from the home Wi-Fi"),
     "too_many": ("Prea multe incercari gresite. Mai incearca peste 15 minute.", "Too many failed attempts. Try again in 15 minutes."),
+    "push_unavailable": ("Notificarile nu sunt disponibile pe server (lipseste pachetul py3-cryptography)",
+                         "Notifications are not available on the server (package py3-cryptography is missing)"),
+    "push_none": ("Nu ai niciun dispozitiv abonat la notificari", "You have no device subscribed to notifications"),
     "import_running": ("Un import este deja in curs", "An import is already running"),
     "import_bad_file": ("Fisierul nu este un export valid (JSON sau ZIP cu JSON)", "The file is not a valid export (JSON or ZIP of JSON)"),
     "import_nothing": ("Nu am gasit in fisier seriale sau filme de importat", "No shows or movies to import were found in the file"),
@@ -130,12 +145,23 @@ class ApiError(Exception):
 
 
 # ---------- utilitare ----------
+def local_now():
+    tz = CFG.get("timezone") or ""
+    if tz:
+        try:
+            from zoneinfo import ZoneInfo
+            return datetime.datetime.now(ZoneInfo(tz)).replace(tzinfo=None)
+        except Exception:
+            pass
+    return datetime.datetime.now()
+
+
 def now():
-    return datetime.datetime.now().isoformat(timespec="seconds")
+    return local_now().isoformat(timespec="seconds")
 
 
 def today():
-    return datetime.date.today().isoformat()
+    return local_now().date().isoformat()
 
 
 def aired(date):
@@ -247,7 +273,7 @@ def _refresh_bg(path, params, ck):
     REFRESH_POOL.submit(job)
 
 
-def tmdb(path, params=None, ttl=6 * 3600):
+def tmdb(path, params=None, ttl=6 * 3600, sync=False):
     """Date TMDB cu cache. Daca exista in cache (chiar si vechi), raspunde imediat;
     datele vechi se reimprospateaza in fundal, deci aplicatia nu asteapta dupa TMDB."""
     if not CFG["tmdb_key"]:
@@ -257,9 +283,11 @@ def tmdb(path, params=None, ttl=6 * 3600):
     ck = path + "?" + urllib.parse.urlencode(sorted(params.items()))
     row = q1("SELECT body, fetched FROM cache WHERE key=?", (ck,))
     if row and ttl:
-        if time.time() - row["fetched"] >= ttl:
+        if time.time() - row["fetched"] < ttl:
+            return json.loads(row["body"])
+        if not sync:
             _refresh_bg(path, params, ck)
-        return json.loads(row["body"])
+            return json.loads(row["body"])
     try:
         return json.loads(_tmdb_fetch(path, params, ck))
     except urllib.error.HTTPError as e:
@@ -691,6 +719,183 @@ def api_stats(u):
             "movie_minutes": mv["m"], "months": [{"month": m, "count": cm.get(m, 0)} for m in months], "top": top}
 
 
+# ---------- notificari: episoade si filme noi ----------
+VAPID = None
+if push.AVAILABLE:
+    try:
+        VAPID = push.Vapid(os.path.join(BASE, "data", "vapid.pem"))
+    except Exception as _e:
+        print("Notificari dezactivate:", _e, flush=True)
+NOTIFY_LOCK = threading.Lock()
+NOTIFY_TXT = {
+    "ro": {"new_ep": "A apărut {code}: {name}", "new_eps": "Episoade noi", "more": "și încă {n}", "new_range": "Au apărut {code}",
+           "movie_out": "Film nou: {title}", "movie_body": "S-a lansat azi. E în lista ta De văzut.",
+           "movies_out": "Filme noi din lista ta", "test_t": "Watch Time", "test_b": "Notificările funcționează ✓"},
+    "en": {"new_ep": "{code} is out: {name}", "new_eps": "New episodes", "more": "and {n} more", "new_range": "{code} are out",
+           "movie_out": "New movie: {title}", "movie_body": "Released today. It's on your watchlist.",
+           "movies_out": "New movies from your list", "test_t": "Watch Time", "test_b": "Notifications are working ✓"},
+}
+
+
+def send_to_user(uid, data):
+    if not VAPID:
+        return 0
+    n = 0
+    for sub in q("SELECT * FROM push_subs WHERE user_id=?", (uid,)):
+        res = push.send(VAPID, sub, data, CFG.get("push_contact") or "mailto:watchtime@example.com")
+        if res == "ok":
+            n += 1
+        elif res == "gone":
+            x("DELETE FROM push_subs WHERE id=?", (sub["id"],))
+        else:
+            print(f"{now()} notificare esuata pentru user {uid}: {res}", flush=True)
+    return n
+
+
+def check_new(uid, dry=False):
+    """Episoade aparute ieri/azi la serialele urmarite si filme din lista lansate ieri/azi, nenotificate inca."""
+    user = q1("SELECT * FROM users WHERE id=?", (uid,))
+    if not user:
+        return {"eps": [], "movies": []}
+    tday = local_now().date()
+    window = {(tday - datetime.timedelta(days=1)).isoformat(), tday.isoformat()}
+    eps, movies = [], []
+    sent = {(r["kind"], r["tmdb_id"], r["season"], r["episode"]) for r in q(
+        "SELECT kind, tmdb_id, season, episode FROM notify_sent WHERE user_id=?", (uid,))}
+    if user["notify_eps"]:
+        for it in q("SELECT * FROM items WHERE user_id=? AND type='tv' AND status IN ('watching','rewatching','completed','plan')", (uid,)):
+            sid = it["tmdb_id"]
+            try:
+                d = tmdb(f"/tv/{sid}", ttl=3600, sync=True)
+                last = d.get("last_episode_to_air") or {}
+                if last.get("air_date") not in window:
+                    continue
+                cnt = counts(uid, sid)
+                sn = last.get("season_number")
+                for ep in tmdb(f"/tv/{sid}/season/{sn}", ttl=3600, sync=True).get("episodes", []):
+                    k = ("ep", sid, sn, ep["episode_number"])
+                    if ep.get("air_date") in window and k not in sent and not cnt.get((sn, ep["episode_number"])):
+                        eps.append({"id": sid, "title": it["title"], "season": sn, "episode": ep["episode_number"],
+                                    "name": ep.get("name") or ""})
+            except ApiError:
+                continue
+    if user["notify_movies"]:
+        for it in q("SELECT * FROM items WHERE user_id=? AND type='movie' AND status='watchlist'", (uid,)):
+            try:
+                rd = tmdb(f"/movie/{it['tmdb_id']}", ttl=6 * 3600, sync=True).get("release_date")
+            except ApiError:
+                continue
+            if rd in window and ("movie", it["tmdb_id"], 0, 0) not in sent:
+                movies.append({"id": it["tmdb_id"], "title": it["title"]})
+    return {"eps": eps, "movies": movies}
+
+
+def notify_user(uid):
+    user = q1("SELECT lang FROM users WHERE id=?", (uid,))
+    L = NOTIFY_TXT["en" if (user and user["lang"] == "en") else "ro"]
+    found = check_new(uid)
+    sent = 0
+    eps, movies = found["eps"], found["movies"]
+    if eps:
+        shows = {}
+        for e in eps:
+            shows.setdefault(e["id"], []).append(e)
+        if len(shows) == 1:
+            sid, lst = next(iter(shows.items()))
+            e = lst[-1]
+            code = f"S{e['season']} E{e['episode']}" if len(lst) == 1 else f"S{e['season']} E{lst[0]['episode']}–E{e['episode']}"
+            body = L["new_ep"].format(code=code, name=e["name"]).rstrip(": ") if len(lst) == 1 else L["new_range"].format(code=code)
+            data = {"title": e["title"], "body": body, "url": f"/#/tv/{sid}"}
+        else:
+            parts = [f"{lst[0]['title']} S{lst[-1]['season']}E{lst[-1]['episode']}" for lst in shows.values()]
+            body = ", ".join(parts[:3]) + (f" {L['more'].format(n=len(parts) - 3)}" if len(parts) > 3 else "")
+            data = {"title": L["new_eps"], "body": body, "url": "/#/shows"}
+        data["tag"] = "wt-eps-" + today()
+        sent += send_to_user(uid, data)
+    if movies:
+        if len(movies) == 1:
+            m = movies[0]
+            data = {"title": L["movie_out"].format(title=m["title"]), "body": L["movie_body"], "url": f"/#/movie/{m['id']}"}
+        else:
+            data = {"title": L["movies_out"], "body": ", ".join(m["title"] for m in movies[:4]), "url": "/#/movies"}
+        data["tag"] = "wt-movies-" + today()
+        sent += send_to_user(uid, data)
+    rows = [(uid, "ep", e["id"], e["season"], e["episode"], now()) for e in eps] + \
+           [(uid, "movie", m["id"], 0, 0, now()) for m in movies]
+    if rows and sent:
+        xmany("INSERT OR IGNORE INTO notify_sent VALUES(?,?,?,?,?,?)", rows)
+    return {"episodes": len(eps), "movies": len(movies), "sent": sent}
+
+
+def run_notify_all():
+    if not VAPID or not NOTIFY_LOCK.acquire(blocking=False):
+        return
+    try:
+        for r in q("SELECT DISTINCT user_id FROM push_subs"):
+            try:
+                res = notify_user(r["user_id"])
+                if res["episodes"] or res["movies"]:
+                    print(f"{now()} notificari user {r['user_id']}: {res}", flush=True)
+            except Exception as e:
+                print(f"{now()} eroare notificari user {r['user_id']}: {e}", flush=True)
+    finally:
+        NOTIFY_LOCK.release()
+
+
+def notify_scheduler():
+    """Verifica la orele din setari (implicit 11:30 si 18:30). Daca serverul a fost oprit la ora respectiva,
+    recupereaza verificarea in urmatoarele 3 ore."""
+    while True:
+        try:
+            n = local_now()
+            due = None
+            for hm in CFG.get("notify_times") or []:
+                try:
+                    h, m = map(int, hm.split(":"))
+                except ValueError:
+                    continue
+                slot = n.replace(hour=h, minute=m, second=0, microsecond=0)
+                if slot <= n < slot + datetime.timedelta(hours=3):
+                    key = slot.strftime("%Y-%m-%d %H:%M")
+                    if not due or key > due:
+                        due = key
+            last = q1("SELECT value FROM meta WHERE key='notify_last'")
+            if due and (not last or last["value"] < due):
+                x("INSERT OR REPLACE INTO meta VALUES('notify_last', ?)", (due,))
+                run_notify_all()
+        except Exception as e:
+            print(f"{now()} eroare planificator notificari: {e}", flush=True)
+        time.sleep(30)
+
+
+def api_push(ctx, a, b):
+    u = ctx["user"]["id"]
+    if a == "subscribe":
+        s = b.get("sub") or {}
+        keys = s.get("keys") or {}
+        if not VAPID or not s.get("endpoint") or not keys.get("p256dh") or not keys.get("auth"):
+            raise ApiError(400, "push_unavailable")
+        x("""INSERT INTO push_subs(user_id,endpoint,p256dh,auth,device,created_at) VALUES(?,?,?,?,?,?)
+             ON CONFLICT(endpoint) DO UPDATE SET user_id=excluded.user_id, p256dh=excluded.p256dh, auth=excluded.auth""",
+          (u, s["endpoint"], keys["p256dh"], keys["auth"], (b.get("device") or "")[:120], now()))
+        return {"ok": True}
+    if a == "unsubscribe":
+        x("DELETE FROM push_subs WHERE user_id=? AND endpoint=?", (u, b.get("endpoint") or ""))
+        return {"ok": True}
+    if a == "prefs":
+        x("UPDATE users SET notify_eps=?, notify_movies=? WHERE id=?", (1 if b.get("eps") else 0, 1 if b.get("movies") else 0, u))
+        return {"ok": True}
+    if a == "test":
+        L = NOTIFY_TXT["en" if ctx["user"].get("lang") == "en" else "ro"]
+        n = send_to_user(u, {"title": L["test_t"], "body": L["test_b"], "url": "/#/profile", "tag": "wt-test"})
+        if not n:
+            raise ApiError(400, "push_none")
+        return {"sent": n}
+    if a == "check":
+        return notify_user(u)
+    raise ApiError(404, "no_action")
+
+
 # ---------- import (Trakt, TV Time in format Trakt, backup Watch Time) ----------
 IMPORT_JOBS = {}
 
@@ -911,6 +1116,11 @@ def get_api(ctx, parts, qs):
         return api_export(u)
     if a == "import":
         return IMPORT_JOBS.get(u) or {"state": "none"}
+    if a == "push":
+        us = q1("SELECT notify_eps, notify_movies FROM users WHERE id=?", (u,))
+        return {"available": bool(VAPID), "key": VAPID.public_b64 if VAPID else None,
+                "devices": q1("SELECT COUNT(*) c FROM push_subs WHERE user_id=?", (u,))["c"],
+                "eps": bool(us["notify_eps"]), "movies": bool(us["notify_movies"]), "times": CFG.get("notify_times") or []}
     raise ApiError(404, "no_route")
 
 
@@ -949,7 +1159,8 @@ def admin_get(parts):
         return {"tmdb_key_set": bool(k), "tmdb_key_hint": ("…" + k[-4:]) if k else "",
                 "language": CFG["language"], "languages": LANGS, "lan_networks": CFG["lan_networks"],
                 "session_days": sess_days(), "max_login_fails": int(CFG["max_login_fails"]),
-                "port": CFG["port"]}
+                "port": CFG["port"], "notify_times": CFG.get("notify_times") or [], "timezone": CFG.get("timezone") or "",
+                "server_time": now(), "push_ok": bool(VAPID)}
     if a == "system":
         return {"users": q1("SELECT COUNT(*) c FROM users WHERE is_admin=0")["c"],
                 "items": q1("SELECT COUNT(*) c FROM items")["c"], "plays": q1("SELECT COUNT(*) c FROM plays")["c"],
@@ -1022,11 +1233,36 @@ def admin_post(ctx, a, b):
             CFG["session_days"] = max(1, min(3650, int(b["session_days"])))
         if b.get("max_login_fails"):
             CFG["max_login_fails"] = max(3, min(100, int(b["max_login_fails"])))
+        if "notify_times" in b:
+            times = []
+            for hm in b["notify_times"]:
+                hm = str(hm).strip()
+                if not hm:
+                    continue
+                m = re.fullmatch(r"(\d{1,2}):(\d{2})", hm)
+                if not m or int(m[1]) > 23 or int(m[2]) > 59:
+                    raise ApiError(400, "bad_request")
+                times.append(f"{int(m[1]):02d}:{m[2]}")
+            CFG["notify_times"] = sorted(set(times))
+        if "timezone" in b:
+            tz = (b.get("timezone") or "").strip()
+            if tz:
+                try:
+                    from zoneinfo import ZoneInfo
+                    ZoneInfo(tz)
+                except Exception:
+                    raise ApiError(400, "bad_request")
+            CFG["timezone"] = tz
         save_cfg()
         return {"ok": True}
     if a == "tmdb-test":
         x("DELETE FROM cache WHERE key LIKE '/configuration%'")
         tmdb("/configuration", {}, ttl=0)
+        return {"ok": True}
+    if a == "notify-now":
+        if not VAPID:
+            raise ApiError(400, "push_unavailable")
+        threading.Thread(target=run_notify_all, daemon=True).start()
         return {"ok": True}
     if a == "cache-clear":
         x("DELETE FROM cache")
@@ -1057,6 +1293,8 @@ def post_api(ctx, parts, b):
 
     if a == "import":
         return api_import_start(u, b)
+    if a.startswith("push/"):
+        return api_push(ctx, a[5:], b)
     t, i = b.get("type", "tv"), int(b.get("id") or 0)
     if t not in ("tv", "movie") or not i:
         raise ApiError(400, "bad_request")
@@ -1320,7 +1558,7 @@ class Handler(BaseHTTPRequestHandler):
         ctype = mimetypes.guess_type(full)[0] or "application/octet-stream"
         if ctype.startswith("text/") or ctype.endswith("javascript"):
             ctype += "; charset=utf-8"
-        self.send_body(body, ctype, cache="no-cache" if full.endswith(".html") else "max-age=86400")
+        self.send_body(body, ctype, cache="no-cache" if full.endswith((".html", "sw.js", ".webmanifest")) else "max-age=86400")
 
     def do_POST(self):
         u = urllib.parse.urlparse(self.path)
@@ -1343,6 +1581,9 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     x("DELETE FROM sessions WHERE expires<?", (time.time(),))
     ThreadingHTTPServer.daemon_threads = True
+    threading.Thread(target=notify_scheduler, daemon=True).start()
+    if not VAPID:
+        print("Notificari dezactivate: instaleaza pachetul cryptography (Alpine: doas apk add py3-cryptography)", flush=True)
     srv = ThreadingHTTPServer((CFG["host"], int(CFG["port"])), Handler)
     print(f"Watch Time ruleaza pe http://{CFG['host']}:{CFG['port']}  (Ctrl+C pentru oprire)")
     if not CFG["tmdb_key"]:

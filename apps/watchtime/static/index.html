@@ -307,6 +307,19 @@ h2 .n{color:var(--muted);font-weight:500;margin-left:6px}
 .seg4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
 .seg4 button{padding:9px 4px;text-align:center}
 
+.sunbtn{display:block;width:100%;margin-top:6px;padding:9px;border-radius:12px;background:var(--panel2);font-weight:600;font-size:14.5px}
+.sunbtn.on{background:var(--accent);color:var(--accent-ink)}
+.sunpanel{margin-top:10px;padding:12px;border-radius:12px;background:var(--panel2)}
+.sunpanel .btn.ghost{background:var(--panel)}
+.sunrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+.sunrow:first-of-type{margin-top:8px}
+.sunrow select,.sunrow input{font:inherit;font-size:14.5px;padding:6px 8px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--text)}
+.sunpanel > small{display:block;margin-top:8px}
+
+.chk{display:flex;align-items:center;gap:10px;padding:7px 0;font-weight:600}
+.chk input{width:20px;height:20px;accent-color:var(--accent)}
+.notewarn{margin:0;padding:10px 12px;border-radius:10px;background:var(--panel2);border-left:3px solid var(--accent);font-size:14px}
+
 /* bottom sheet */
 .sheet-bg{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
 .sheet{width:100%;max-width:520px;background:var(--panel);border-radius:20px 20px 0 0;padding:18px 16px calc(16px + env(safe-area-inset-bottom,0px))}
@@ -412,7 +425,13 @@ const I18N = {
     // profil
     user:'Utilizator', stats:'Statistici', onShows:'la seriale', epsWatched:'episoade văzute', rewatchedN:n => `, ${n} revăzute`,
     onMovies:'la filme', moviePlays:'vizionări de filme', perMonth:'Episoade pe lună', mostWatched:'Cele mai văzute',
-    settingsH:'Setări', theme:'Temă', themeAuto:'Automat', themeDark:'Negru', themeGrey:'Gri', themeLight:'Luminos', language:'Limbă',
+    settingsH:'Setări', theme:'Temă', themeAuto:'Automat', themeDark:'Negru', themeGrey:'Gri', themeLight:'Luminos', themeSun:'După ora zilei',
+    locUse:'Folosește locația', locUpdate:'Actualizează locația', locOk:'Răsărit și apus calculate pentru locația ta.',
+    locMissing:'Fără locație: se folosesc 07:00 și 19:00.', locAsking:'Se cere locația…', locSaved:'Locația a fost salvată',
+    locDenied:'Locația nu a fost permisă. O poți activa din setările telefonului (Safari → Locație).',
+    locFailed:'Nu am putut afla locația. Mai încearcă.', locNeedsHttps:'Locația merge doar pe adresa https (duckdns), nu pe http://IP:8765.',
+    schedNight:'Noapte (apus → răsărit)', schedMorning:'Răsărit → ', schedMidday:'→ ', schedAfternoon:'→ apus',
+    schedNow:th => `Acum: ${th}. Se schimbă singură, fără să redeschizi aplicația.`, language:'Limbă',
     oldPw:'Parola actuală', newPw:'Parola nouă', change:'Schimbă', pwChanged:'Parola a fost schimbată',
     backup:'Copie de siguranță', download:'Descarcă', logout:'Ieși din cont',
     // admin
@@ -449,6 +468,17 @@ const I18N = {
     comingOut:d => `Apare ${d}`, noDate:'dată neanunțată',
     filterPh:'Caută în listă', searchAllMovies:'Caută în toate filmele tale', allCatResults:n => `${n} ${n == 1 ? 'rezultat' : 'rezultate'} din toate filmele tale`, mvWatchedOne:'Văzut', sortBy:'Sortare', noMatch:'Nimic nu se potrivește căutării.',
     sorts:{added:'Adăugate recent', title:'Titlu A–Z', year_new:'An: noi → vechi', year_old:'An: vechi → noi', rating:'Nota mea', watched:'Văzute recent', release:'Data lansării', progress:'Progres'},
+    notifH:'Notificări', and:' și ', notifInfo:x => `Verific la ${x} dacă au apărut episoade noi la serialele tale sau filme din lista De văzut și te anunț.`,
+    notifEps:'Episoade noi la serialele mele', notifMovies:'Filme din lista De văzut lansate',
+    notifEnable:'Activează notificările pe acest dispozitiv', notifOn:'Notificările sunt active pe acest dispozitiv',
+    notifOnToast:'Notificări activate', notifOff:'Dezactivează', notifTest:'Trimite un test', notifTestSent:'Notificare de test trimisă',
+    notifDenied:'Notificările sunt blocate pentru Watch Time. Le poți permite din Setările telefonului → Notificări → Watch Time.',
+    notifIosHome:'Pe iPhone, notificările merg doar dacă deschizi Watch Time de pe ecranul principal: în Safari, pe adresa https, Share → Add to Home Screen, apoi deschide-l de acolo (iOS 16.4 sau mai nou).',
+    notifHttps:'Notificările merg doar pe adresa https (duckdns), nu pe http://IP:8765.',
+    notifUnsupported:'Acest browser nu suportă notificări.', notifServerOff:'Notificările sunt dezactivate pe server. Adminul trebuie să ruleze pe mini PC: doas apk add py3-cryptography, apoi să repornească aplicația.',
+    notifOther:n => `Ai notificările active pe ${n} ${n == 1 ? 'dispozitiv' : 'dispozitive'}.`,
+    notifTimes:'Ore de verificare (separate prin virgulă)', tzLabel:'Fus orar (gol = ora mini PC-ului)',
+    serverTime:x => `Ora folosită acum: ${x}`, notifCheckNow:'Verifică acum pentru toți', notifChecking:'Verificarea a pornit',
     searchWeb:'Caută pe net', webTv:'serial', webMovie:'film',
     retry:'Reîncearcă', autoRetry:'Reîncerc automat în câteva secunde.', trailer:'Trailer',
     markUpto:'Marchează tot până aici', notAiredYet:'Nu a apărut încă', noOverview:'Fără descriere.',
@@ -511,7 +541,13 @@ const I18N = {
     rating:'Rating', stars:n => `${n} stars`,
     user:'User', stats:'Stats', onShows:'watching shows', epsWatched:'episodes watched', rewatchedN:n => `, ${n} rewatched`,
     onMovies:'watching movies', moviePlays:'movie watches', perMonth:'Episodes per month', mostWatched:'Most watched',
-    settingsH:'Settings', theme:'Theme', themeAuto:'Auto', themeDark:'Black', themeGrey:'Grey', themeLight:'Light', language:'Language',
+    settingsH:'Settings', theme:'Theme', themeAuto:'Auto', themeDark:'Black', themeGrey:'Grey', themeLight:'Light', themeSun:'By time of day',
+    locUse:'Use my location', locUpdate:'Update location', locOk:'Sunrise and sunset calculated for your location.',
+    locMissing:'No location: using 07:00 and 19:00.', locAsking:'Asking for location…', locSaved:'Location saved',
+    locDenied:'Location access was denied. You can allow it in your device settings (Safari → Location).',
+    locFailed:"Couldn't get your location. Try again.", locNeedsHttps:'Location only works on the https address (duckdns), not on http://IP:8765.',
+    schedNight:'Night (sunset → sunrise)', schedMorning:'Sunrise → ', schedMidday:'→ ', schedAfternoon:'→ sunset',
+    schedNow:th => `Now: ${th}. It switches by itself, no need to reopen the app.`, language:'Language',
     oldPw:'Current password', newPw:'New password', change:'Change', pwChanged:'Password changed',
     backup:'Backup', download:'Download', logout:'Sign out',
     you:'(you)', adminCreated:d => `admin, created ${d}`,
@@ -547,6 +583,17 @@ const I18N = {
     comingOut:d => `Out ${d}`, noDate:'date not announced',
     filterPh:'Search this list', searchAllMovies:'Search all your movies', allCatResults:n => `${n} ${n == 1 ? 'result' : 'results'} from all your movies`, mvWatchedOne:'Watched', sortBy:'Sort', noMatch:'Nothing matches your search.',
     sorts:{added:'Recently added', title:'Title A–Z', year_new:'Year: new → old', year_old:'Year: old → new', rating:'My rating', watched:'Recently watched', release:'Release date', progress:'Progress'},
+    notifH:'Notifications', and:' and ', notifInfo:x => `I check at ${x} for new episodes of your shows and movies from your watchlist, and let you know.`,
+    notifEps:'New episodes of my shows', notifMovies:'Watchlist movies released',
+    notifEnable:'Turn on notifications on this device', notifOn:'Notifications are on for this device',
+    notifOnToast:'Notifications turned on', notifOff:'Turn off', notifTest:'Send a test', notifTestSent:'Test notification sent',
+    notifDenied:'Notifications are blocked for Watch Time. You can allow them in your phone Settings → Notifications → Watch Time.',
+    notifIosHome:'On iPhone, notifications only work when you open Watch Time from the Home Screen: in Safari, on the https address, Share → Add to Home Screen, then open it from there (iOS 16.4 or later).',
+    notifHttps:'Notifications only work on the https address (duckdns), not on http://IP:8765.',
+    notifUnsupported:"This browser doesn't support notifications.", notifServerOff:'Notifications are disabled on the server. The admin needs to run on the mini PC: doas apk add py3-cryptography, then restart the app.',
+    notifOther:n => `You have notifications on for ${n} ${n == 1 ? 'device' : 'devices'}.`,
+    notifTimes:'Check times (comma separated)', tzLabel:'Time zone (empty = mini PC time)',
+    serverTime:x => `Time in use now: ${x}`, notifCheckNow:'Check now for everyone', notifChecking:'Check started',
     searchWeb:'Search the web', webTv:'TV series', webMovie:'movie',
     retry:'Try again', autoRetry:'Retrying automatically in a few seconds.', trailer:'Trailer',
     markUpto:'Mark everything up to here', notAiredYet:'Not aired yet', noOverview:'No description.',
@@ -775,19 +822,84 @@ document.addEventListener('wheel', e => {
 /* ---------- tema ---------- */
 function getTheme(){ try { return localStorage.getItem('wt-theme') || 'auto'; } catch { return 'auto'; } }
 const THEME_BG = {dark:'#000000', grey:'#1E1F22', light:'#E9ECF4'};
+/* ---------- tema dupa ora zilei (rasarit / apus calculate local) ---------- */
+function sunTimes(date, lat, lng){
+  const rad = Math.PI / 180, dayMs = 864e5, J1970 = 2440588, J2000 = 2451545, e = rad * 23.4397, J0 = 0.0009;
+  const toDays = d => d.valueOf() / dayMs - 0.5 + J1970 - J2000, fromJ = j => new Date((j + 0.5 - J1970) * dayMs);
+  const lw = rad * -lng, phi = rad * lat, d = toDays(date);
+  const n = Math.round(d - J0 - lw / (2 * Math.PI));
+  const ds = J0 + lw / (2 * Math.PI) + n;
+  const M = rad * (357.5291 + 0.98560028 * ds);
+  const L = M + rad * (1.9148 * Math.sin(M) + 0.02 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M)) + rad * 102.9372 + Math.PI;
+  const dec = Math.asin(Math.sin(e) * Math.sin(L));
+  const Jnoon = J2000 + ds + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * L);
+  const w = Math.acos((Math.sin(-0.833 * rad) - Math.sin(phi) * Math.sin(dec)) / (Math.cos(phi) * Math.cos(dec)));
+  if(isNaN(w)) return null;                                   // zi/noapte polara
+  const Jset = J2000 + J0 + (w + lw) / (2 * Math.PI) + n + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * L);
+  return {rise: fromJ(Jnoon - (Jset - Jnoon)), set: fromJ(Jset)};
+}
+const SCHED_DEF = {t1:'11:00', t2:'15:00', night:'dark', morning:'dark', midday:'light', afternoon:'grey', lat:null, lon:null};
+function getSched(){ try { return {...SCHED_DEF, ...JSON.parse(localStorage.getItem('wt-sched') || '{}')}; } catch { return {...SCHED_DEF}; } }
+function saveSched(p){ try { localStorage.setItem('wt-sched', JSON.stringify({...getSched(), ...p})); } catch {} }
+function todaySun(){
+  const c = getSched(), now = new Date();
+  const st = c.lat != null ? sunTimes(now, c.lat, c.lon) : null;
+  if(st) return {...st, real:true};
+  const at = hm => { const d = new Date(now); d.setHours(hm, 0, 0, 0); return d; };
+  return {rise:at(7), set:at(19), real:false};                  // fara locatie: 07:00 / 19:00
+}
+function sunTheme(){
+  const c = getSched(), now = new Date(), {rise, set} = todaySun();
+  const at = hm => { const [h, m] = hm.split(':').map(Number); const d = new Date(now); d.setHours(h, m || 0, 0, 0); return d; };
+  if(now < rise || now >= set) return c.night;
+  if(now < at(c.t1)) return c.morning;
+  if(now < at(c.t2)) return c.midday;
+  return c.afternoon;
+}
+const hhmm = d => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+window.setSched = (k, v) => { saveSched({[k]: v}); applyTheme(); };
+window.useLocation = () => {
+  const el = $('#sunstat');
+  if(!window.isSecureContext || !navigator.geolocation){ if(el) el.textContent = t('locNeedsHttps'); return; }
+  if(el) el.textContent = t('locAsking');
+  navigator.geolocation.getCurrentPosition(p => {
+    saveSched({lat:+p.coords.latitude.toFixed(3), lon:+p.coords.longitude.toFixed(3)});
+    applyTheme(); softRefresh(); toast(t('locSaved'));
+  }, err => { if(el) el.textContent = err.code === 1 ? t('locDenied') : t('locFailed'); },
+  {enableHighAccuracy:false, timeout:15000, maximumAge:86400000});
+};
+setInterval(() => { if(getTheme() === 'sun') applyTheme(); }, 60000);
+document.addEventListener('visibilitychange', () => { if(!document.hidden && getTheme() === 'sun') applyTheme(); });
+
 function applyTheme(){
   const th = getTheme();
-  const eff = th === 'auto' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : (THEME_BG[th] ? th : 'dark');
+  const eff = th === 'sun' ? sunTheme() : th === 'auto' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : (THEME_BG[th] ? th : 'dark');
   document.documentElement.dataset.theme = eff;
   document.querySelector('meta[name=theme-color]').content = THEME_BG[eff];
 }
 window.setTheme = th => { try { localStorage.setItem('wt-theme', th); } catch {} applyTheme(); softRefresh(); };
 matchMedia('(prefers-color-scheme: light)').addEventListener('change', applyTheme);
 applyTheme();
+function sunPanel(){
+  const c = getSched(), sun = todaySun();
+  const opt = v => ['dark', 'grey', 'light'].map(k => `<option value="${k}" ${v === k ? 'selected' : ''}>${t(k === 'dark' ? 'themeDark' : k === 'grey' ? 'themeGrey' : 'themeLight')}</option>`).join('');
+  const row = (label, key) => `<div class="sunrow"><span>${label}</span><select onchange="setSched('${key}',this.value)">${opt(c[key])}</select></div>`;
+  return `<div class="sunpanel">
+    <div class="rowline"><div><b>☀ ${hhmm(sun.rise)} → ${hhmm(sun.set)} ☾</b><small class="muted" style="display:block" id="sunstat">${sun.real ? t('locOk') : t('locMissing')}</small></div>
+      <button class="btn ghost" onclick="useLocation()">${c.lat != null ? t('locUpdate') : t('locUse')}</button></div>
+    ${row(t('schedNight'), 'night')}
+    ${row(t('schedMorning') + ` <input type="time" value="${c.t1}" onchange="setSched('t1',this.value)">`, 'morning')}
+    ${row(t('schedMidday') + ` <input type="time" value="${c.t2}" onchange="setSched('t2',this.value)">`, 'midday')}
+    ${row(t('schedAfternoon'), 'afternoon')}
+    <small class="muted">${t('schedNow', t(sunTheme() === 'dark' ? 'themeDark' : sunTheme() === 'grey' ? 'themeGrey' : 'themeLight'))}</small>
+  </div>`;
+}
 function themeRow(){
   const th = getTheme();
   return `<div><span>${t('theme')}</span><div class="seg seg4">${[['auto', t('themeAuto')], ['dark', t('themeDark')], ['grey', t('themeGrey')], ['light', t('themeLight')]].map(([k, l]) =>
-    `<button class="${th === k ? 'on' : ''}" onclick="setTheme('${k}')">${l}</button>`).join('')}</div></div>
+    `<button class="${th === k ? 'on' : ''}" onclick="setTheme('${k}')">${l}</button>`).join('')}</div>
+    <button class="sunbtn ${th === 'sun' ? 'on' : ''}" onclick="setTheme('sun')">◐ ${t('themeSun')}</button>
+    ${th === 'sun' ? sunPanel() : ''}</div>
     <div class="rowline" style="margin-top:14px"><span>${t('language')}</span>${langSwitch()}</div>`;
 }
 function pwForm(){
@@ -1347,7 +1459,7 @@ const views = {
       ${listsBlock}
       <h2>${t('settingsH')}</h2><div class="block">${themeRow()}${pwForm()}
       <div class="rowline" style="margin-top:16px"><span>${t('backup')}</span><a class="btn ghost" href="/api/export">${t('download')}</a></div>
-      </div>${importBlock}
+      </div><h2>${t('notifH')}</h2><div class="block" id="pushblock"><p class="muted" style="margin:0">${t('loading')}</p></div>${importBlock}
       <div class="rowline" style="margin-top:18px"><span></span><button class="btn danger" onclick="T.logout()">${t('logout')}</button></div>`;
   },
 
@@ -1382,6 +1494,12 @@ const views = {
         <label class="field"><span>${t('tmdbLang')}</span>
           <select name="language" style="${box}">${c.languages.map(l => `<option ${l === c.language ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         <button type="button" class="btn ghost" onclick="act(() => api('admin/tmdb-test', {}), t('tmdbOk'))">${t('testConn')}</button></div>
+      <h2>${t('notifH')}</h2><div class="block">
+        ${c.push_ok ? '' : `<p class="notewarn" style="margin-top:0">${t('notifServerOff')}</p>`}
+        <label class="field"><span>${t('notifTimes')}</span><input name="notify_times" value="${esc(c.notify_times.join(', '))}" placeholder="11:30, 18:30"></label>
+        <label class="field"><span>${t('tzLabel')}</span><input name="timezone" value="${esc(c.timezone)}" placeholder="Europe/Bucharest" autocapitalize="none"></label>
+        <p class="muted" style="margin:-4px 0 12px;font-size:13.5px">${t('serverTime', c.server_time.replace('T', ' '))}</p>
+        <button type="button" class="btn ghost" onclick="act(() => api('admin/notify-now', {}), t('notifChecking'))">${t('notifCheckNow')}</button></div>
       <h2>${t('security')}</h2><div class="block">
         <label class="field"><span>${t('homeNets')}</span>
           <textarea name="lan_networks" rows="4" style="${box};font-size:15px">${esc(c.lan_networks.join('\n'))}</textarea></label>
@@ -1422,7 +1540,58 @@ async function pollImport(){
     else if(j.state === 'done'){ el.textContent = t('importDone', j.result); toast(t('importDone', j.result)); }
   } catch(e){ el.textContent = e.message; }
 }
-afterRender.profile = afterRender.settings = () => {
+/* ---------- notificari ---------- */
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isStandalone = () => navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+function keyBytes(b64){ const s = atob((b64 + '='.repeat((4 - b64.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(s, c => c.charCodeAt(0)); }
+async function pushReg(){ return navigator.serviceWorker.register('/sw.js').then(() => navigator.serviceWorker.ready); }
+async function renderPush(){
+  const box = $('#pushblock'); if(!box) return;
+  let p; try { p = await api('push'); } catch(e){ box.innerHTML = errorBox(e); return; }
+  const times = p.times.join(t('and'));
+  const info = `<p class="muted" style="margin:0 0 12px;font-size:14px">${t('notifInfo', times)}</p>`;
+  const prefs = `<label class="chk"><input type="checkbox" ${p.eps ? 'checked' : ''} onchange="pushPrefs()" id="pp_eps"> ${t('notifEps')}</label>
+    <label class="chk"><input type="checkbox" ${p.movies ? 'checked' : ''} onchange="pushPrefs()" id="pp_mv"> ${t('notifMovies')}</label>`;
+  let why = '';
+  if(!p.available) why = t('notifServerOff');
+  else if(!window.isSecureContext) why = t('notifHttps');
+  else if(isIOS && !isStandalone()) why = t('notifIosHome');
+  else if(!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) why = t('notifUnsupported');
+  if(why){ box.innerHTML = info + `<p class="notewarn">${why}</p>` + (p.devices ? `<p class="muted" style="margin:10px 0 0">${t('notifOther', p.devices)}</p>` : ''); return; }
+  let sub = null;
+  try { sub = await (await pushReg()).pushManager.getSubscription(); } catch {}
+  if(sub) api('push/subscribe', {sub:sub.toJSON(), device:navigator.userAgent}).catch(() => {});   // resincronizare tacuta
+  const denied = Notification.permission === 'denied';
+  box.innerHTML = info + (sub
+    ? `<p style="margin:0 0 10px;font-weight:700;color:var(--ok)">✓ ${t('notifOn')}</p>${prefs}
+       <div class="rowline" style="margin-top:12px"><button class="btn ghost" onclick="pushTest()">${t('notifTest')}</button>
+       <button class="btn danger" onclick="pushOff()">${t('notifOff')}</button></div>`
+    : denied ? `<p class="notewarn">${t('notifDenied')}</p>`
+    : `<button class="btn" style="width:100%;padding:13px" onclick="pushOn(this)">${t('notifEnable')}</button>${p.devices ? `<p class="muted" style="margin:10px 0 0">${t('notifOther', p.devices)}</p>` : ''}`)
+    + `<p class="muted" id="pushmsg" style="margin:10px 0 0"></p>`;
+  window._pushKey = p.key;
+}
+window.pushOn = async btn => {
+  btn.disabled = true;
+  const perm = await Notification.requestPermission();      // trebuie sa fie primul pas dupa atingere (iPhone)
+  if(perm !== 'granted'){ btn.disabled = false; $('#pushmsg').textContent = t('notifDenied'); return; }
+  try {
+    const reg = await pushReg();
+    const old = await reg.pushManager.getSubscription(); if(old) await old.unsubscribe();
+    const sub = await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:keyBytes(window._pushKey)});
+    await api('push/subscribe', {sub:sub.toJSON(), device:navigator.userAgent});
+    toast(t('notifOnToast')); renderPush();
+  } catch(e){ btn.disabled = false; $('#pushmsg').textContent = e.message || String(e); }
+};
+window.pushOff = async () => {
+  try { const reg = await pushReg(); const sub = await reg.pushManager.getSubscription();
+    if(sub){ await api('push/unsubscribe', {endpoint:sub.endpoint}); await sub.unsubscribe(); } } catch {}
+  renderPush();
+};
+window.pushTest = () => act(() => api('push/test', {}), t('notifTestSent'));
+window.pushPrefs = () => api('push/prefs', {eps:$('#pp_eps').checked, movies:$('#pp_mv').checked}).catch(e => toast(e.message));
+afterRender.profile = () => { afterRender.profile_forms(); renderPush(); };
+afterRender.settings = afterRender.profile_forms = () => {
   const fi = $('#impfile');
   if(fi) fi.onchange = () => {
     const f = fi.files[0]; if(!f) return;
@@ -1443,7 +1612,8 @@ afterRender.profile = afterRender.settings = () => {
   const sf = $('#setform');
   if(sf) sf.onsubmit = ev => { ev.preventDefault(); const f = Object.fromEntries(new FormData(sf));
     act(() => api('admin/settings', {tmdb_key:f.tmdb_key, language:f.language, lan_networks:f.lan_networks.split('\n'),
-      session_days:+f.session_days, max_login_fails:+f.max_login_fails}), t('settingsSaved')); };
+      session_days:+f.session_days, max_login_fails:+f.max_login_fails,
+      notify_times:f.notify_times.split(/[,;\s]+/), timezone:f.timezone}), t('settingsSaved')); };
 };
 afterRender.movies = bindTools;
 afterRender.lists = bindTools;
@@ -1513,6 +1683,7 @@ async function runSearch(v){
   catch(e){ box.innerHTML = errorBox(e); }
 }
 
+if('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('/sw.js').catch(() => {});
 boot();
 </script>
 </body>
