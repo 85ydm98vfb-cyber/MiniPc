@@ -10,7 +10,8 @@ Mini PC cu **Alpine Linux**: patru scripturi, fiecare rulat cu `doas` prin SSH.
 | `backup.sh`    | backup pe stick USB pentru datele ambelor aplicații (manual sau automat, lunea) |
 
 Scripturile pot fi rulate de oricâte ori: datele, parolele și setările rămân.
-Codul aplicațiilor nu este în acest repo — arhivele `.zip` le copiezi de pe laptop.
+Codul **Watch Time** e în `apps/watchtime/` (fără date sau chei — acestea rămân doar pe mini PC).
+PS Games nu e în repo: arhiva `.zip` o copiezi de pe laptop.
 
 ## 1. `setup.sh` — sistemul
 
@@ -51,6 +52,14 @@ scp .\watchtime.zip alex@192.168.0.187:~
 ```sh
 wget -O watchtime.sh https://raw.githubusercontent.com/85ydm98vfb-cyber/MiniPc/claude/mini-pc-ssh-config-jx93hs/watchtime.sh
 doas sh watchtime.sh ~/watchtime.zip
+```
+
+Sau direct din GitHub, fără arhivă (Watch Time e în `apps/watchtime/`):
+
+```sh
+git clone -b claude/mini-pc-ssh-config-jx93hs https://github.com/85ydm98vfb-cyber/MiniPc.git ~/MiniPc   # prima dată
+cd ~/MiniPc && git pull                                                                                  # data viitoare
+doas sh watchtime.sh ~/MiniPc/apps/watchtime
 ```
 
 La fel pentru PlayStation Games:

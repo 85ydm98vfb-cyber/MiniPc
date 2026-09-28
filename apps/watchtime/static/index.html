@@ -1,0 +1,1519 @@
+<!doctype html>
+<html lang="ro" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Watch Time">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap" rel="stylesheet">
+<title>Watch Time</title>
+<style>
+:root{
+  --bg:#000000;--panel:#141416;--panel2:#1F1F23;--line:#2B2B30;
+  --text:#F2F0EA;--muted:#9A9AA2;--accent:#F4C152;--accent-ink:#241A00;
+  --ok:#5CC8B0;--danger:#E8746A;--shade:rgba(0,0,0,.55);
+  color-scheme:dark;
+}
+:root[data-theme=grey]{
+  --bg:#1E1F22;--panel:#2A2B30;--panel2:#35363C;--line:#44454C;
+  --text:#EFEDE8;--muted:#A6A6AE;--accent:#F4C152;--accent-ink:#241A00;
+  --ok:#5CC8B0;--danger:#EC7B70;--shade:rgba(0,0,0,.45);
+  color-scheme:dark;
+}
+:root[data-theme=light]{
+  --bg:#E9ECF4;--panel:#FFFFFF;--panel2:#F0F2F8;--line:#D3D8E7;
+  --text:#1A1E33;--muted:#5C6280;--accent:#D8960C;--accent-ink:#FFFFFF;
+  --ok:#17917A;--danger:#C4443A;--shade:rgba(40,46,80,.18);
+  color-scheme:light;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:16px/1.45 "Bricolage Grotesque",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-optical-sizing:auto}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+img{max-width:100%;display:block}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px}
+
+/* bara de sus */
+.top{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);padding-top:env(safe-area-inset-top,0px)}
+.top .wrap{display:flex;align-items:center;gap:12px;min-height:56px}
+.top h1{margin:0;font-size:28px;font-weight:800;letter-spacing:-.02em;font-variation-settings:"opsz" 96}
+#back{font-weight:600;color:var(--accent);padding:8px 4px}
+
+main.wrap{padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))}
+h2{font-size:20px;font-weight:750;margin:26px 0 12px;letter-spacing:-.01em}
+h2 .n{color:var(--muted);font-weight:500;margin-left:6px}
+.muted{color:var(--muted)}
+.loading{padding:48px 0;text-align:center;color:var(--muted)}
+
+/* navigatie jos */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;justify-content:center;
+  background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px))}
+.tabs a{flex:1;max-width:120px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;
+  font-size:11.5px;font-weight:600;color:var(--muted)}
+.tabs svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.tabs a.on{color:var(--accent)}
+
+/* card "urmatorul episod" */
+.list{display:flex;flex-direction:column;gap:10px}
+.card{display:grid;grid-template-columns:62px 1fr auto;gap:14px;align-items:center;background:var(--panel);
+  border-radius:16px;padding:10px 12px 10px 10px}
+.card .thumb{width:62px;aspect-ratio:2/3;border-radius:9px;overflow:hidden;background:var(--panel2)}
+.card .thumb img{width:100%;height:100%;object-fit:cover}
+.info{display:flex;flex-direction:column;min-width:0}
+.info b{font-size:16.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.code{font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums;font-size:15px}
+.epname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.info small{color:var(--muted);font-size:13px}
+.check{width:50px;height:50px;border-radius:50%;border:2.5px solid var(--accent);color:var(--accent);
+  display:grid;place-items:center;transition:background .15s,transform .15s}
+.check svg{width:24px;height:24px;stroke:currentColor;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.check:active{transform:scale(.92)}
+.check.on{background:var(--accent);color:var(--accent-ink)}
+.date{min-width:62px;text-align:center;font-weight:800;line-height:1.1;color:var(--ok)}
+.date small{display:block;font-weight:500;color:var(--muted);font-size:12px}
+
+/* grila de postere cu banda de progres */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:16px 12px}
+.pcard{display:flex;flex-direction:column;gap:5px;min-width:0}
+.pimg{position:relative;aspect-ratio:2/3;border-radius:11px;overflow:hidden;background:var(--panel2);
+  display:grid;place-items:center;text-align:center;padding:0;font-weight:700;font-size:14px;color:var(--muted)}
+.pimg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.pimg > span{padding:8px}
+.tape{position:absolute;left:0;right:0;bottom:0;height:6px;background:var(--shade)}
+.tape div{height:100%;background:var(--accent)}
+.badge{position:absolute;top:6px;right:6px;min-width:26px;height:26px;padding:0 7px;border-radius:13px;
+  background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:13px;line-height:26px;font-style:normal;text-align:center}
+.pcard b{font-size:14px;font-weight:650;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pcard small{font-size:12.5px;color:var(--muted);margin-top:-3px}
+
+/* chips / segmente */
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 14px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{white-space:nowrap;padding:8px 14px;border-radius:20px;background:var(--panel);font-weight:600;font-size:14.5px;color:var(--muted)}
+.chip.on{background:var(--text);color:var(--bg)}
+.chip .n{opacity:.65;margin-left:4px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{padding:9px 13px;border-radius:12px;background:var(--panel);font-weight:600;font-size:14.5px}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
+
+/* cautare */
+.searchbox input{width:100%;font:inherit;font-size:17px;padding:13px 16px;border-radius:14px;border:1px solid var(--line);
+  background:var(--panel);color:var(--text);outline:none}
+.searchbox input:focus{border-color:var(--accent)}
+.result{display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.result .thumb{width:56px;aspect-ratio:2/3;border-radius:8px;overflow:hidden;background:var(--panel2)}
+.result .thumb img{width:100%;height:100%;object-fit:cover}
+.result p{margin:2px 0 0;font-size:13px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.btn{padding:9px 14px;border-radius:12px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:14.5px;white-space:nowrap}
+.btn.ghost{background:var(--panel2);color:var(--text)}
+.btn.danger{background:transparent;color:var(--danger);padding-left:0}
+.tag{font-size:13px;font-weight:650;color:var(--ok);white-space:nowrap}
+
+/* pagina de detaliu */
+.hero{position:relative;margin:0 -16px;padding:56px 16px 0;background:var(--bd) center/cover no-repeat}
+.hero::before{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,color-mix(in srgb,var(--bg) 35%,transparent),var(--bg) 92%)}
+.hero .in{position:relative;display:grid;grid-template-columns:112px 1fr;gap:16px;align-items:end}
+.hero .poster{width:112px;aspect-ratio:2/3;border-radius:12px;object-fit:cover;background:var(--panel2);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.hero h1{margin:0 0 6px;font-size:30px;line-height:1.05;font-weight:800;letter-spacing:-.025em;font-variation-settings:"opsz" 96}
+.facts{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13.5px;color:var(--muted)}
+.facts .live{color:var(--ok);font-weight:650}
+.block{background:var(--panel);border-radius:16px;padding:14px;margin-top:14px}
+.prog{display:flex;justify-content:space-between;align-items:baseline;font-weight:700}
+.prog .big{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.bar{height:8px;border-radius:4px;background:var(--panel2);overflow:hidden;margin-top:8px}
+.bar div{height:100%;background:var(--accent);border-radius:4px}
+.nextrow{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.overview{color:var(--muted);font-size:15px;line-height:1.55;margin:14px 0 0;max-width:68ch}
+.stars{display:flex;gap:2px}
+.stars button{font-size:28px;line-height:1;color:var(--line);padding:2px}
+.stars button.on{color:var(--accent)}
+.rowline{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+
+/* sezoane si episoade */
+.season{background:var(--panel);border-radius:14px;margin-top:10px;overflow:hidden}
+.shead{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:13px 14px}
+.shead .t{font-weight:700;text-align:left}
+.shead .c{color:var(--muted);font-variant-numeric:tabular-nums;font-size:14px}
+.shead .c.full{color:var(--ok);font-weight:700}
+.sall{font-size:13px;font-weight:700;color:var(--accent);padding:6px 8px;border-radius:8px;background:var(--panel2)}
+.eps{border-top:1px solid var(--line)}
+.ep{display:grid;grid-template-columns:30px 1fr 42px;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+.ep:last-child{border-bottom:0}
+.ep .num{font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.ep b{font-weight:600;font-size:15px;display:block}
+.ep small{color:var(--muted);font-size:12.5px}
+.ep .upto{font-size:12.5px;color:var(--accent);font-weight:600;margin-left:8px}
+.ep.future{opacity:.5}
+.ep.done .num{color:var(--ok)}
+.tick{width:38px;height:38px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;color:transparent}
+.tick svg{width:18px;height:18px;stroke:currentColor;stroke-width:3.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.ep.done .tick{background:var(--ok);border-color:var(--ok);color:var(--bg)}
+
+/* statistici */
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--panel);border-radius:16px;padding:14px}
+.stat .v{font-size:24px;font-weight:800;line-height:1.1;letter-spacing:-.01em}
+.stat .l{color:var(--muted);font-size:13.5px;margin-top:4px}
+.chart{display:flex;align-items:flex-end;gap:5px;height:130px;background:var(--panel);border-radius:16px;padding:14px 12px 30px;position:relative}
+.chart .col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative}
+.chart .col i{display:block;width:100%;border-radius:4px 4px 0 0;background:var(--accent);min-height:2px}
+.chart .col span{position:absolute;bottom:-20px;font-size:11px;color:var(--muted)}
+.chart .col em{font-style:normal;font-size:11px;color:var(--muted);margin-bottom:3px}
+.toprow{display:grid;grid-template-columns:24px 40px 1fr auto;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.toprow img,.toprow .ph{width:40px;aspect-ratio:2/3;border-radius:6px;object-fit:cover;background:var(--panel2)}
+
+.empty{text-align:center;padding:48px 20px;color:var(--muted)}
+.empty b{display:block;color:var(--text);font-size:19px;margin-bottom:6px}
+.empty .btn{display:inline-block;margin-top:16px}
+.err{background:var(--panel);border-left:4px solid var(--danger);border-radius:12px;padding:14px 16px;margin-top:20px}
+.err b{display:block;margin-bottom:4px}
+
+#toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;
+  pointer-events:none;transition:.2s;background:var(--text);color:var(--bg);border-radius:14px;padding:11px 16px;
+  display:flex;gap:16px;align-items:center;font-weight:600;font-size:14.5px;z-index:9;width:max-content;max-width:calc(100% - 32px)}
+#toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+#toast button{color:var(--accent);font-weight:800}
+:root[data-theme=light] #toast button{color:#F4C152}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* --- adaugiri Watch Time --- */
+.tabs a{font-size:10.5px}
+.tabs svg{width:23px;height:23px}
+.row{display:grid;grid-auto-flow:column;grid-auto-columns:116px;gap:12px;overflow-x:auto;padding-bottom:6px;margin:0 -16px;padding-left:16px;padding-right:16px;scroll-snap-type:x proximity;scrollbar-width:none}
+.row::-webkit-scrollbar{display:none}
+.row > *{scroll-snap-align:start}
+.dcard{position:relative;display:flex;flex-direction:column;gap:5px;min-width:0}
+.dcard .pimg{display:grid}
+.qadd{position:absolute;top:6px;right:6px;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(0,0,0,.65);color:#fff;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.qadd svg{width:17px;height:17px;stroke:currentColor;stroke-width:2.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.qadd.in{background:var(--ok);color:#0B1A16}
+.score{position:absolute;left:6px;bottom:6px;font-size:12px;font-weight:800;padding:2px 7px;border-radius:8px;background:rgba(0,0,0,.65);color:#F4C152}
+.dcard b{font-size:14px;font-weight:650;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.dcard small{font-size:12.5px;color:var(--muted);margin-top:-3px}
+.toggle{display:inline-flex;background:var(--panel);border-radius:14px;padding:4px;margin:4px 0 12px}
+.toggle button{padding:9px 20px;border-radius:10px;font-weight:700;font-size:15px;color:var(--muted)}
+.toggle button.on{background:var(--accent);color:var(--accent-ink)}
+.more{display:block;margin:18px auto 0}
+.rw{display:inline-block;font-size:11.5px;font-weight:800;color:var(--bg);background:var(--ok);border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:2px}
+.xcount{font-weight:800;color:var(--ok);margin-left:6px}
+.rwbox{border:2px solid var(--ok)}
+.rwbox .bar div{background:var(--ok)}
+
+/* Seriale: taburi, numaratoare, istoric */
+.tabs3{display:flex;width:100%;margin:0}
+.tabs3 button{flex:1;padding:10px 4px;font-size:14px;white-space:nowrap}
+.tabs3 .n{margin-left:5px;opacity:.7;font-weight:600}
+.link{color:var(--accent);font-weight:650;font-size:14px}
+.rw.new{background:var(--accent);color:var(--accent-ink)}
+.days{min-width:62px;text-align:center;line-height:1}
+.days b{display:block;font-size:30px;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.days b.w{font-size:17px;color:var(--ok)}
+.days small{display:block;font-size:12.5px;color:var(--muted);margin-top:3px}
+#anchor{min-height:100vh}
+.hist{opacity:.9}
+.hrow{display:grid;grid-template-columns:40px 1fr auto;gap:12px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}
+.hrow .thumb{width:40px;aspect-ratio:2/3;border-radius:6px;overflow:hidden;background:var(--panel2)}
+.hrow .thumb img{width:100%;height:100%;object-fit:cover}
+.hrow b{font-size:14.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hrow .info span{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hrow .code{font-size:13.5px}
+.hint{display:block;width:100%;text-align:center;color:var(--muted);font-size:12.5px;padding:6px 0 4px}
+
+/* randuri Discover cu sageti pe desktop */
+.rowwrap{position:relative}
+.rarr{display:none}
+@media (hover:hover) and (pointer:fine){
+  .rarr{display:grid;place-items:center;position:absolute;top:calc(50% - 44px);z-index:2;width:46px;height:46px;border-radius:50%;
+    background:var(--accent);color:var(--accent-ink);font-size:30px;font-weight:800;line-height:1;box-shadow:0 6px 18px rgba(0,0,0,.5);opacity:.85;transition:opacity .15s,transform .15s}
+  .rarr:hover{opacity:1;transform:scale(1.08)}
+  .rarr.l{left:-10px}.rarr.r{right:-10px}
+  .row,.chips{scrollbar-width:thin;cursor:grab}
+  .row::-webkit-scrollbar,.chips::-webkit-scrollbar{display:block;height:6px}
+  .row::-webkit-scrollbar-thumb,.chips::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .dragging{cursor:grabbing;scroll-snap-type:none;user-select:none}
+  .dragging a,.dragging img{pointer-events:none}
+}
+.rowline h2{margin-bottom:12px}
+.qadd.watch{background:rgba(0,0,0,.65);color:#fff;border:2px solid rgba(255,255,255,.75)}
+.qadd.watch.in{background:var(--ok);border-color:var(--ok);color:#0B1A16}
+.lists2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:420px){.lists2{grid-template-columns:1fr}}
+.cathead{display:flex;justify-content:space-between;font-weight:800;font-size:17px;padding-bottom:6px;border-bottom:2px solid var(--line)}
+.catrow{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-weight:600}
+.cnt{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-weight:700}
+.chev{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--panel2);color:var(--accent)}
+.chev svg{width:15px;height:15px;stroke:currentColor;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.catrow:hover .chev,.cathead:hover .chev{background:var(--accent);color:var(--accent-ink)}
+#ptr{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:50%;transform:translate(-50%,-60px);z-index:30;background:var(--panel);
+  color:var(--text);padding:8px 14px;border-radius:18px;font-size:13.5px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.35);opacity:0;pointer-events:none}
+#ptr.show{opacity:1}
+
+.infs{display:flex;align-items:center;justify-content:center;gap:10px;padding:22px 0 8px;color:var(--muted);font-weight:600;font-size:14px}
+.spin{width:18px;height:18px;border-radius:50%;border:2.5px solid var(--line);border-top-color:var(--accent);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.tools{display:grid;grid-template-columns:1fr auto;gap:8px;margin:2px 0 14px}
+.tools input,.tools select{font:inherit;font-size:15px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--text);outline:none;min-width:0}
+.tools input:focus,.tools select:focus{border-color:var(--accent)}
+.tools select{max-width:48vw}
+.chips.sticky{position:sticky;top:calc(56px + env(safe-area-inset-top,0px));z-index:4;background:var(--bg);margin:0 -16px;padding:8px 16px 10px;
+  box-shadow:0 8px 12px -10px rgba(0,0,0,.5)}
+
+.subbar{position:sticky;top:calc(56px + env(safe-area-inset-top,0px));z-index:4;background:var(--bg);margin:0 -16px;padding:6px 16px 8px;
+  transition:transform .22s ease;box-shadow:0 8px 12px -10px rgba(0,0,0,.5)}
+.subbar .toggle{margin:0}
+.subbar .chips{padding-bottom:2px;margin-top:8px}
+.subbar.hid{transform:translateY(calc(-100% - 70px))}
+
+.eplink{color:inherit}
+.eplink:hover b{color:var(--accent)}
+.ephero{padding-top:130px}
+.ephero .in1{position:relative;padding-bottom:4px}
+.ephero h1{margin:4px 0 6px;font-size:28px;line-height:1.1;font-weight:800;letter-spacing:-.02em}
+.epnav{display:flex;justify-content:space-between;gap:10px;margin-top:18px}
+
+.herobtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.webbtn{display:inline-flex;align-items:center;gap:7px;padding:8px 13px 8px 10px}
+.webbtn svg{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none}
+.trailer{display:inline-flex;align-items:center;gap:7px;margin-top:0;padding:8px 14px 8px 11px;background:#E53935;color:#fff}
+.trailer svg{width:16px;height:16px;fill:currentColor}
+
+.seentag{position:absolute;top:6px;left:6px;display:inline-flex;align-items:center;gap:4px;padding:3px 8px 3px 5px;border-radius:9px;
+  background:var(--ok);color:#0B1A16;font-size:12px;font-weight:800}
+.seentag svg{width:14px;height:14px;stroke:currentColor;stroke-width:3.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.dcard.seen .pimg img{opacity:.75}
+
+.badge.left{right:auto;left:6px}
+
+.card .thumb{position:relative}
+.card .thumb .tape{height:5px}
+
+.seg4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.seg4 button{padding:9px 4px;text-align:center}
+
+/* bottom sheet */
+.sheet-bg{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:100%;max-width:520px;background:var(--panel);border-radius:20px 20px 0 0;padding:18px 16px calc(16px + env(safe-area-inset-bottom,0px))}
+.sheet h3{margin:0 0 4px;font-size:17px}
+.sheet p{margin:0 0 8px;color:var(--muted);font-size:14px}
+.sheet button{display:block;width:100%;text-align:center;padding:14px;border-radius:12px;background:var(--panel2);margin-top:8px;font-weight:700}
+.sheet button.pri{background:var(--accent);color:var(--accent-ink)}
+.sheet button.dan{color:var(--danger)}
+
+/* autentificare si formulare */
+.auth{min-height:100vh;display:grid;place-items:center;padding:24px 16px calc(24px + env(safe-area-inset-bottom,0px))}
+.authbox{width:100%;max-width:360px}
+.authbox img{width:76px;height:76px;border-radius:20px;margin-bottom:16px}
+.authbox h1{margin:0;font-size:34px;font-weight:800;letter-spacing:-.03em;font-variation-settings:"opsz" 96}
+.authbox p{color:var(--muted);margin:6px 0 22px}
+.field{display:block;margin-bottom:12px}
+.field span{display:block;font-size:13.5px;font-weight:650;color:var(--muted);margin-bottom:5px}
+.field input{width:100%;font:inherit;font-size:17px;padding:13px 15px;border-radius:13px;border:1px solid var(--line);background:var(--panel);color:var(--text);outline:none}
+.field input:focus{border-color:var(--accent)}
+.authbox .btn{width:100%;padding:14px;font-size:16px;margin-top:6px}
+.formerr{color:var(--danger);font-weight:600;min-height:22px;margin-top:10px;font-size:14.5px}
+.urow{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+.urow small{display:block;color:var(--muted);font-size:12.5px}
+.inline{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:12px}
+.inline input{min-width:0;font:inherit;font-size:15px;padding:10px 12px;border-radius:11px;border:1px solid var(--line);background:var(--panel2);color:var(--text);outline:none}
+.who{display:flex;align-items:center;gap:12px;margin-top:6px}
+.avatar{width:48px;height:48px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:800;font-size:21px}
+</style>
+</head>
+<body>
+<header class="top" id="topbar" hidden><div class="wrap">
+  <button id="back" hidden>‹ Înapoi</button>
+  <h1 id="topTitle">Urmează</h1>
+</div></header>
+
+<main id="main" class="wrap"></main>
+
+<nav class="tabs" id="tabs" aria-label="Navigare" hidden></nav>
+<div id="toast" role="status"></div>
+
+<script>const $ = s => document.querySelector(s);
+const main = $('#main');
+const CHECK = '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const CHEV = '<svg viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></svg>';
+const PLUS = '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>';
+
+/* ---------- traduceri / translations ---------- */
+const I18N = {
+  ro: {
+    months:['ian','feb','mar','apr','mai','iun','iul','aug','sep','oct','nov','dec'],
+    locale:'ro-RO',
+    tmdb:{'Returning Series':'Continuă','Ended':'Încheiat','Canceled':'Anulat','In Production':'În producție','Planned':'Planificat','Pilot':'Pilot'},
+    st:{watching:'Urmăresc', plan:'De văzut', completed:'Terminat', stopped:'Abandonat', watchlist:'De văzut', watched:'Văzut', rewatching:'Rewatched'},
+    filters:{watching:'Urmăresc', rewatching:'Rewatched', plan:'De văzut', completed:'Terminate', stopped:'Abandonate', all:'Toate'},
+    tabs:{library:'Colecția mea', shows:'Seriale', movies:'Filme', discover:'Discover', search:'Caută', profile:'Profil', users:'Utilizatori', settings:'Setări', system:'Sistem'},
+    sections:{trending:'Trending săptămâna asta', popular:'Populare acum', top_rated:'Cele mai apreciate', on_air:'În difuzare acum', upcoming:'În curând la cinema'},
+    days:n => n == 1 ? 'zi' : 'zile', hours:n => n == 1 ? 'oră' : 'ore',
+    times:n => n === 1 ? 'o dată' : `de ${n} ori`,
+    devices:n => n == 1 ? 'dispozitiv' : 'dispozitive',
+    today:'azi', tomorrow:'mâine', inDays:n => `în ${n} zile`,
+    back:'‹ Înapoi', loading:'Se încarcă…', close:'Închide', undo:'Anulează', add:'Adaugă', remove:'Șterge', more:'Mai multe',
+    noServer:'Nu ajung la server. Verifică conexiunea la internet.', serverSaid:c => `Serverul a răspuns cu ${c}`,
+    keyHint:'Adminul poate pune cheia TMDB din Setări.',
+    tv:'Seriale', movie:'Filme',
+    // auth
+    firstSetupWifi:'Prima configurare (crearea contului de admin) se face de pe un dispozitiv conectat la Wi-Fi-ul de acasă.',
+    setupIntro:'Creează contul de admin. El administrează aplicația și funcționează doar din Wi-Fi-ul de acasă.',
+    adminBlocked:'Contul admin merge doar din Wi-Fi-ul de acasă. Intră cu contul tău personal.',
+    loginIntro:'Intră în contul tău.', username:'Utilizator', password:'Parolă', password2:'Repetă parola',
+    createAccount:'Creează contul', signIn:'Intră', pwMismatch:'Parolele nu se potrivesc', error:'Eroare',
+    // actiuni
+    rewatchDone:'Rewatch terminat! Ai revăzut tot serialul.', markedWatched:c => `${c} marcat ca văzut`,
+    movedTo:l => `Mutat la ${l}`, delShow:'Ștergi serialul?', delMovie:'Ștergi filmul?',
+    delShowText:'Se șterge și tot istoricul episoadelor văzute.', delMovieText:'Se șterge și istoricul vizionărilor.',
+    removed:'Șters din listă', watchedTimes:n => `Văzut ${I18N.ro.times(n)}.`, watchAgain:n => `Văzut din nou (${n}×)`,
+    epWatchedTimes:(c, n) => `${c} văzut ${I18N.ro.times(n)}`, removePlay:'Scoate o vizionare',
+    seasonUnmarked:n => `Sezonul ${n} demarcat`, seasonMarked:n => `Sezonul ${n} marcat ca văzut`, uptoDone:c => `Marcat tot până la ${c}`,
+    stopRewatchQ:'Oprești rewatch-ul?', stopRewatchText:'Vizionările făcute rămân în istoric.', stop:'Oprește',
+    rewatchStopped:'Rewatch oprit', nowRewatching:'Serialul e acum în Rewatched',
+    playAdded:'Vizionare adăugată', playRemoved:'Vizionare scoasă', addedTo:l => `Adăugat la ${l}`,
+    noEpisodes:'Niciun episod anunțat încă.', unknownDate:'dată necunoscută', uptoHere:'până aici', markWatched:'Marchează ca văzut',
+    // upnext
+    toWatch:'De văzut', soon:'În curând', caughtUp:'La zi', rewatchTag:'Rewatch',
+    nothingYet:'Nimic de urmărit încă', nothingYetText:'Caută sau descoperă un serial și adaugă-l. Aici apare următorul episod de văzut.',
+    openDiscover:'Deschide Discover', moreAfter:n => `încă ${n} după acesta`, lastAired:'ultimul episod apărut',
+    planned:'de văzut', newOn:d => `nou ${d}`,
+    // liste
+    rewatchProg:(w, a) => `Rewatch ${w}/${a}`, epsProg:(w, a) => `${w}/${a} episoade`,
+    emptyList:'Lista e goală', emptyListText:'Niciun serial în această categorie.',
+    noMovies:'Niciun film aici', noMoviesText:'Caută sau descoperă un film și adaugă-l.', watchedOn:d => `văzut ${d}`,
+    recommended:'Recomandate', showName:'Numele serialului', movieName:'Numele filmului',
+    searchShow:'Caută un serial', searchMovie:'Caută un film', searchText:'Scrie numele și apare lista de rezultate.',
+    noResults:'Niciun rezultat', noResultsText:q => `Nu am găsit nimic pentru „${q}”.`,
+    // serial
+    rewatchStatus:n => `Status: <span style="color:var(--ok)">Rewatched</span>, runda ${n}`,
+    ofAired:a => `din ${a} episoade apărute`, ofRewatched:(a, n) => `din ${a} revăzute (runda ${n})`,
+    next:'Următorul', nextRewatch:'Următorul de revăzut', newEpisode:'Episod nou',
+    rewatchInfo:'Când revezi tot, serialul iese singur din Rewatched.',
+    seenAll:x => `Ai văzut tot ce a apărut${x ? `, cu ${x} revizionări` : ''}.`, startRewatch:'Revăd serialul',
+    seasons:'Sezoane', specials:'Episoade speciale', season:n => `Sezonul ${n}`, unmark:'Demarchează', wholeSeason:'Tot sezonul',
+    movieWatched:n => `Văzut ${I18N.ro.times(n)}`, lastTime:d => `ultima dată ${d}`, watchedAgain:'Văzut din nou',
+    rating:'Notă', stars:n => `${n} stele`,
+    // profil
+    user:'Utilizator', stats:'Statistici', onShows:'la seriale', epsWatched:'episoade văzute', rewatchedN:n => `, ${n} revăzute`,
+    onMovies:'la filme', moviePlays:'vizionări de filme', perMonth:'Episoade pe lună', mostWatched:'Cele mai văzute',
+    settingsH:'Setări', theme:'Temă', themeAuto:'Automat', themeDark:'Negru', themeGrey:'Gri', themeLight:'Luminos', language:'Limbă',
+    oldPw:'Parola actuală', newPw:'Parola nouă', change:'Schimbă', pwChanged:'Parola a fost schimbată',
+    backup:'Copie de siguranță', download:'Descarcă', logout:'Ieși din cont',
+    // admin
+    you:'(tu)', adminCreated:d => `admin, creat ${d}`,
+    userSummary:(s, m, p) => `${s} seriale, ${m} filme, ${p} vizionări`, activeOn:d => `, activ ${d}`,
+    newAccount:'Cont nou', pwMin:'Parolă (minim 6 caractere)', adminAccount:'Cont de admin',
+    adminAccountHint:'(doar administrare, doar din Wi-Fi)', users:'Utilizatori', admins:'Administratori',
+    noUsers:'Niciun utilizator încă. Creează primul cont mai sus; fiecare pornește cu listele goale.',
+    accountCreated:n => `Contul ${n} a fost creat`, selfAdmin:'Acesta este contul tău de admin.', whatToDo:'Ce vrei să faci cu acest cont?',
+    changePw:'Schimbă parola', newPwFor:n => `Parola nouă pentru ${n} (minim 6 caractere):`, rename:'Redenumește', newName:'Numele nou:',
+    renamed:'Cont redenumit', logoutAll:'Deconectează de pe toate dispozitivele', loggedOut:n => `${n} a fost deconectat`,
+    deleteAccount:'Șterge contul', deleteAccountQ:n => `Ștergi contul ${n}?`, deleteAccountText:'Se șterg definitiv toate serialele, filmele și istoricul lui.',
+    deleteForever:'Șterge definitiv', accountDeleted:'Cont șters',
+    tmdbH:'Date seriale și filme (TMDB)', apiKey:'Cheie API', keySet:h => `(setată, se termină în ${h})`, keyMissing:'(lipsește!)',
+    keepKey:'Lasă gol ca să păstrezi cheia actuală', keyPlaceholder:'API Read Access Token de pe themoviedb.org',
+    tmdbLang:'Limba titlurilor și descrierilor (TMDB)', testConn:'Testează conexiunea', tmdbOk:'Conexiunea la TMDB funcționează',
+    security:'Securitate', homeNets:'Rețele „acasă” (de unde merge contul admin), câte una pe rând',
+    sessionDays:'Cât rămâne logat un dispozitiv (zile)', maxFails:'Parole greșite permise înainte de blocare (15 minute)',
+    saveSettings:'Salvează setările', settingsSaved:'Setările au fost salvate', myAccount:'Contul meu',
+    sysUsers:'utilizatori', sysItems:'titluri în liste', sysPlays:'vizionări salvate', sysDb:'baza de date',
+    sysUptime:'de când rulează', sysCache:'răspunsuri TMDB în cache', maintenance:'Întreținere',
+    fullBackup:'Backup complet', fullBackupText:'Toți utilizatorii și istoricul, fișier .db',
+    clearCache:'Golește cache-ul TMDB', clearCacheText:'Forțează reîncărcarea informațiilor despre seriale', clear:'Golește', cacheCleared:'Cache golit',
+    serverInfo:(h, p) => `Server: ${h}, Python ${p}. Repornire din terminalul mini PC-ului:`,
+    tabToWatch:'De văzut', tabNotStarted:'Neîncepute', tabSoon:'În curând', watchedH:'Văzute', older:'Mai vechi',
+    scrollHint:'Derulează în sus pentru episoadele văzute', newSeason:'Sezon nou', premiere:'Premieră', start:'Începe',
+    daysBig:n => n == 1 ? 'zi' : 'zile', todayBig:'Azi', tomorrowBig:'Mâine',
+    emptyToWatch:'Ești la zi cu tot', emptyToWatchText:'Când apar episoade sau sezoane noi la serialele tale, le găsești aici.',
+    emptyNotStarted:'Nimic neînceput', emptyNotStartedText:'Serialele adăugate, din care n-ai văzut încă nimic, apar aici.',
+    emptySoon:'Nimic programat', emptySoonText:'Episoadele și premierele anunțate la serialele tale apar aici, cu zilele rămase.',
+    collection:'Colecția mea', mvToWatch:'De văzut', mvSoon:'În curând', mvWatched:'Văzute',
+    releaseOn:d => `lansare ${d}`, notReleased:'Nelansat încă', noSoonMovies:'Niciun film așteptat',
+    noSoonMoviesText:'Adaugă filme care n-au apărut încă (din Discover → În curând la cinema) și vezi aici câte zile mai sunt.',
+    comingOut:d => `Apare ${d}`, noDate:'dată neanunțată',
+    filterPh:'Caută în listă', searchAllMovies:'Caută în toate filmele tale', allCatResults:n => `${n} ${n == 1 ? 'rezultat' : 'rezultate'} din toate filmele tale`, mvWatchedOne:'Văzut', sortBy:'Sortare', noMatch:'Nimic nu se potrivește căutării.',
+    sorts:{added:'Adăugate recent', title:'Titlu A–Z', year_new:'An: noi → vechi', year_old:'An: vechi → noi', rating:'Nota mea', watched:'Văzute recent', release:'Data lansării', progress:'Progres'},
+    searchWeb:'Caută pe net', webTv:'serial', webMovie:'film',
+    retry:'Reîncearcă', autoRetry:'Reîncerc automat în câteva secunde.', trailer:'Trailer',
+    markUpto:'Marchează tot până aici', notAiredYet:'Nu a apărut încă', noOverview:'Fără descriere.',
+    seeAll:'Vezi tot', backToDiscover:'‹ Discover', markedMovie:'Film marcat ca văzut',
+    myLists:'Listele mele', allItems:'Toate', listsEmpty:'Nimic în această categorie',
+    importH:'Importă date', importText:'Din Trakt (arhiva .zip sau fișierele .json din export) sau dintr-o copie de siguranță Watch Time. Poți importa de mai multe ori, nu se dublează nimic.',
+    chooseFile:'Alege fișierul', importing:(d, n) => `Se importă… ${d} din ${n} titluri`, readingFile:'Se citește fișierul…',
+    importDone:r => `Import terminat: ${r.shows} seriale, ${r.movies} filme, ${r.plays} vizionări noi${r.skipped ? `, ${r.skipped} titluri sărite` : ''}.`,
+    pullRefresh:'Trage pentru reîmprospătare', releaseRefresh:'Eliberează pentru reîmprospătare', refreshing:'Se reîmprospătează…',
+    scrollLeft:'Înapoi', scrollRight:'Înainte',
+  },
+  en: {
+    months:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+    locale:'en-GB',
+    tmdb:{'Returning Series':'Returning','Ended':'Ended','Canceled':'Canceled','In Production':'In production','Planned':'Planned','Pilot':'Pilot'},
+    st:{watching:'Watching', plan:'Plan to watch', completed:'Completed', stopped:'Dropped', watchlist:'Watchlist', watched:'Watched', rewatching:'Rewatched'},
+    filters:{watching:'Watching', rewatching:'Rewatched', plan:'Plan to watch', completed:'Completed', stopped:'Dropped', all:'All'},
+    tabs:{library:'My collection', shows:'Shows', movies:'Movies', discover:'Discover', search:'Search', profile:'Profile', users:'Users', settings:'Settings', system:'System'},
+    sections:{trending:'Trending this week', popular:'Popular now', top_rated:'Top rated', on_air:'On the air', upcoming:'Coming to cinemas'},
+    days:n => n == 1 ? 'day' : 'days', hours:n => n == 1 ? 'hour' : 'hours',
+    times:n => n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`,
+    devices:n => n == 1 ? 'device' : 'devices',
+    today:'today', tomorrow:'tomorrow', inDays:n => `in ${n} days`,
+    back:'‹ Back', loading:'Loading…', close:'Close', undo:'Undo', add:'Add', remove:'Delete', more:'Load more',
+    noServer:"Can't reach the server. Check your internet connection.", serverSaid:c => `The server returned ${c}`,
+    keyHint:'The admin can add the TMDB key in Settings.',
+    tv:'Shows', movie:'Movies',
+    firstSetupWifi:'First-time setup (creating the admin account) must be done from a device on the home Wi-Fi.',
+    setupIntro:'Create the admin account. It manages the app and only works from the home Wi-Fi.',
+    adminBlocked:'The admin account only works from the home Wi-Fi. Sign in with your personal account.',
+    loginIntro:'Sign in to your account.', username:'Username', password:'Password', password2:'Repeat password',
+    createAccount:'Create account', signIn:'Sign in', pwMismatch:"Passwords don't match", error:'Error',
+    rewatchDone:'Rewatch finished! You watched the whole show again.', markedWatched:c => `${c} marked as watched`,
+    movedTo:l => `Moved to ${l}`, delShow:'Delete this show?', delMovie:'Delete this movie?',
+    delShowText:'Your whole episode history for it is deleted too.', delMovieText:'Its watch history is deleted too.',
+    removed:'Removed from your list', watchedTimes:n => `Watched ${I18N.en.times(n)}.`, watchAgain:n => `Watched again (${n}×)`,
+    epWatchedTimes:(c, n) => `${c} watched ${I18N.en.times(n)}`, removePlay:'Remove one watch',
+    seasonUnmarked:n => `Season ${n} unmarked`, seasonMarked:n => `Season ${n} marked as watched`, uptoDone:c => `Marked everything up to ${c}`,
+    stopRewatchQ:'Stop the rewatch?', stopRewatchText:'Watches you already logged stay in your history.', stop:'Stop',
+    rewatchStopped:'Rewatch stopped', nowRewatching:'The show is now in Rewatched',
+    playAdded:'Watch added', playRemoved:'Watch removed', addedTo:l => `Added to ${l}`,
+    noEpisodes:'No episodes announced yet.', unknownDate:'date unknown', uptoHere:'up to here', markWatched:'Mark as watched',
+    toWatch:'To watch', soon:'Coming soon', caughtUp:'Caught up', rewatchTag:'Rewatch',
+    nothingYet:'Nothing to watch yet', nothingYetText:'Search for or discover a show and add it. Your next episode shows up here.',
+    openDiscover:'Open Discover', moreAfter:n => `${n} more after this`, lastAired:'latest aired episode',
+    planned:'plan to watch', newOn:d => `new ${d}`,
+    rewatchProg:(w, a) => `Rewatch ${w}/${a}`, epsProg:(w, a) => `${w}/${a} episodes`,
+    emptyList:'This list is empty', emptyListText:'No shows in this category.',
+    noMovies:'No movies here', noMoviesText:'Search for or discover a movie and add it.', watchedOn:d => `watched ${d}`,
+    recommended:'Recommended', showName:'Show title', movieName:'Movie title',
+    searchShow:'Search for a show', searchMovie:'Search for a movie', searchText:'Type a title and results appear here.',
+    noResults:'No results', noResultsText:q => `Nothing found for “${q}”.`,
+    rewatchStatus:n => `Status: <span style="color:var(--ok)">Rewatched</span>, round ${n}`,
+    ofAired:a => `of ${a} aired episodes`, ofRewatched:(a, n) => `of ${a} rewatched (round ${n})`,
+    next:'Next', nextRewatch:'Next to rewatch', newEpisode:'New episode',
+    rewatchInfo:'Once you rewatch everything, the show leaves Rewatched on its own.',
+    seenAll:x => `You've seen everything that aired${x ? `, plus ${x} rewatches` : ''}.`, startRewatch:'Rewatch show',
+    seasons:'Seasons', specials:'Specials', season:n => `Season ${n}`, unmark:'Unmark', wholeSeason:'Whole season',
+    movieWatched:n => `Watched ${I18N.en.times(n)}`, lastTime:d => `last time ${d}`, watchedAgain:'Watched again',
+    rating:'Rating', stars:n => `${n} stars`,
+    user:'User', stats:'Stats', onShows:'watching shows', epsWatched:'episodes watched', rewatchedN:n => `, ${n} rewatched`,
+    onMovies:'watching movies', moviePlays:'movie watches', perMonth:'Episodes per month', mostWatched:'Most watched',
+    settingsH:'Settings', theme:'Theme', themeAuto:'Auto', themeDark:'Black', themeGrey:'Grey', themeLight:'Light', language:'Language',
+    oldPw:'Current password', newPw:'New password', change:'Change', pwChanged:'Password changed',
+    backup:'Backup', download:'Download', logout:'Sign out',
+    you:'(you)', adminCreated:d => `admin, created ${d}`,
+    userSummary:(s, m, p) => `${s} shows, ${m} movies, ${p} watches`, activeOn:d => `, active ${d}`,
+    newAccount:'New account', pwMin:'Password (at least 6 characters)', adminAccount:'Admin account',
+    adminAccountHint:'(management only, home Wi-Fi only)', users:'Users', admins:'Admins',
+    noUsers:'No users yet. Create the first account above; each one starts with empty lists.',
+    accountCreated:n => `Account ${n} created`, selfAdmin:'This is your admin account.', whatToDo:'What do you want to do with this account?',
+    changePw:'Change password', newPwFor:n => `New password for ${n} (at least 6 characters):`, rename:'Rename', newName:'New name:',
+    renamed:'Account renamed', logoutAll:'Sign out of all devices', loggedOut:n => `${n} was signed out`,
+    deleteAccount:'Delete account', deleteAccountQ:n => `Delete the account ${n}?`, deleteAccountText:'All their shows, movies and history are permanently deleted.',
+    deleteForever:'Delete permanently', accountDeleted:'Account deleted',
+    tmdbH:'Show and movie data (TMDB)', apiKey:'API key', keySet:h => `(set, ends in ${h})`, keyMissing:'(missing!)',
+    keepKey:'Leave empty to keep the current key', keyPlaceholder:'API Read Access Token from themoviedb.org',
+    tmdbLang:'Language for titles and descriptions (TMDB)', testConn:'Test connection', tmdbOk:'The TMDB connection works',
+    security:'Security', homeNets:'“Home” networks (where the admin account works), one per line',
+    sessionDays:'How long a device stays signed in (days)', maxFails:'Wrong passwords allowed before a 15-minute lock',
+    saveSettings:'Save settings', settingsSaved:'Settings saved', myAccount:'My account',
+    sysUsers:'users', sysItems:'titles in lists', sysPlays:'watches saved', sysDb:'database',
+    sysUptime:'uptime', sysCache:'TMDB responses cached', maintenance:'Maintenance',
+    fullBackup:'Full backup', fullBackupText:'All users and history, .db file',
+    clearCache:'Clear the TMDB cache', clearCacheText:'Forces show information to be reloaded', clear:'Clear', cacheCleared:'Cache cleared',
+    serverInfo:(h, p) => `Server: ${h}, Python ${p}. Restart from the mini PC's terminal:`,
+    tabToWatch:'To watch', tabNotStarted:'Not started', tabSoon:'Coming soon', watchedH:'Watched', older:'Older',
+    scrollHint:'Scroll up for watched episodes', newSeason:'New season', premiere:'Premiere', start:'Start',
+    daysBig:n => n == 1 ? 'day' : 'days', todayBig:'Today', tomorrowBig:'Tomorrow',
+    emptyToWatch:"You're all caught up", emptyToWatchText:'New episodes and new seasons of your shows show up here.',
+    emptyNotStarted:'Nothing unstarted', emptyNotStartedText:"Shows you added but haven't started yet show up here.",
+    emptySoon:'Nothing scheduled', emptySoonText:'Announced episodes and premieres of your shows show up here, with the days left.',
+    collection:'My collection', mvToWatch:'To watch', mvSoon:'Coming soon', mvWatched:'Watched',
+    releaseOn:d => `release ${d}`, notReleased:'Not released yet', noSoonMovies:'No upcoming movies',
+    noSoonMoviesText:"Add movies that aren't out yet (Discover → Coming to cinemas) and see how many days are left.",
+    comingOut:d => `Out ${d}`, noDate:'date not announced',
+    filterPh:'Search this list', searchAllMovies:'Search all your movies', allCatResults:n => `${n} ${n == 1 ? 'result' : 'results'} from all your movies`, mvWatchedOne:'Watched', sortBy:'Sort', noMatch:'Nothing matches your search.',
+    sorts:{added:'Recently added', title:'Title A–Z', year_new:'Year: new → old', year_old:'Year: old → new', rating:'My rating', watched:'Recently watched', release:'Release date', progress:'Progress'},
+    searchWeb:'Search the web', webTv:'TV series', webMovie:'movie',
+    retry:'Try again', autoRetry:'Retrying automatically in a few seconds.', trailer:'Trailer',
+    markUpto:'Mark everything up to here', notAiredYet:'Not aired yet', noOverview:'No description.',
+    seeAll:'See all', backToDiscover:'‹ Discover', markedMovie:'Movie marked as watched',
+    myLists:'My lists', allItems:'All', listsEmpty:'Nothing in this category',
+    importH:'Import data', importText:'From Trakt (the .zip archive or the .json files from the export) or from a Watch Time backup. You can import more than once; nothing gets duplicated.',
+    chooseFile:'Choose file', importing:(d, n) => `Importing… ${d} of ${n} titles`, readingFile:'Reading the file…',
+    importDone:r => `Import finished: ${r.shows} shows, ${r.movies} movies, ${r.plays} new watches${r.skipped ? `, ${r.skipped} titles skipped` : ''}.`,
+    pullRefresh:'Pull to refresh', releaseRefresh:'Release to refresh', refreshing:'Refreshing…',
+    scrollLeft:'Back', scrollRight:'Forward',
+  },
+};
+function getLang(){
+  if(state.me?.lang) return state.me.lang;
+  try { const l = localStorage.getItem('wt-lang'); if(l) return l; } catch {}
+  return (navigator.language || '').toLowerCase().startsWith('ro') ? 'ro' : 'en';
+}
+function t(key, ...a){ const v = I18N[getLang()][key] ?? I18N.ro[key]; return typeof v === 'function' ? v(...a) : v; }
+window.setLang = async l => {
+  try { localStorage.setItem('wt-lang', l); } catch {}
+  if(state.me){ state.me.lang = l; try { await api('lang', {lang:l}); } catch {} buildNav(); state.disc.data = {}; softRefresh(); }
+  else boot();
+  applyLang();
+};
+function applyLang(){ document.documentElement.lang = getLang(); $('#back').textContent = t('back'); }
+function langSwitch(){
+  const L = getLang();
+  return `<div class="seg" role="group" aria-label="Language">${[['ro','Română'],['en','English']].map(([k, l]) =>
+    `<button type="button" class="${L === k ? 'on' : ''}" onclick="setLang('${k}')">${l}</button>`).join('')}</div>`;
+}
+
+const state = {
+  me:null, showsTab:'towatch', history:{items:[], more:false}, showsFilter:'watching', moviesFilter:'watchlist', open:{id:null, set:new Set()},
+  search:{type:'tv', q:'', results:[], page:1, pages:1},
+  disc:{type:'tv', genre:null, section:null, page:1, pages:1, results:[], data:{}},
+};
+let routeToken = 0;
+const TV_KEYS = ['watching','plan','completed','stopped'], MV_KEYS = ['watchlist','watched'];
+const stLabel = k => t('st')[k] || '';
+
+const NAV_ICONS = {
+  upnext:'<rect x="3" y="5" width="18" height="12" rx="2.5"/><path d="M10 8.5v5l4.5-2.5z"/><path d="M8 20h8"/>',
+  shows:'<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8 3l4 4 4-4"/>',
+  movies:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 3v18M16 3v18M4 8h4M4 16h4M16 8h4M16 16h4"/>',
+  discover:'<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',
+  search:'<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>',
+  profile:'<circle cx="12" cy="8.5" r="4"/><path d="M4.5 20.5c1.2-4 4.1-6 7.5-6s6.3 2 7.5 6"/>',
+  users:'<circle cx="9" cy="8.5" r="3.5"/><path d="M2.5 20c.9-3.4 3.4-5.2 6.5-5.2s5.6 1.8 6.5 5.2"/><path d="M16 5.2a3.5 3.5 0 010 6.6M18.5 15c1.6.8 2.6 2.4 3 5"/>',
+  settings:'<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>',
+  system:'<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/>',
+};
+const USER_TABS = ['shows','movies','discover','search','profile'], ADMIN_TABS = ['users','settings','system'];
+function buildNav(){
+  $('#tabs').innerHTML = (state.me.is_admin ? ADMIN_TABS : USER_TABS)
+    .map(k => `<a href="#/${k}" data-v="${k}"><svg viewBox="0 0 24 24">${NAV_ICONS[k]}</svg>${t('tabs')[k]}</a>`).join('');
+}
+
+/* ---------- utilitare ---------- */
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const img = (p, size='w342') => p ? `https://image.tmdb.org/t/p/${size}${p}` : '';
+const code = e => `S${e.season} E${e.episode}`;
+const H = () => ({'X-Lang':getLang()});
+function netError(){ const e = new Error(t('noServer')); e.code = 'network'; return e; }
+async function fetchT(url, opts = {}, ms = 15000){
+  const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), ms);
+  try { return await fetch(url, {...opts, signal:ctl.signal}); }
+  catch { throw netError(); }
+  finally { clearTimeout(tm); }
+}
+async function api(path, body){
+  const r = await fetchT('/api/' + path, body
+      ? {method:'POST', headers:{'Content-Type':'application/json', ...H()}, body:JSON.stringify(body), credentials:'same-origin'}
+      : {cache:'no-store', credentials:'same-origin', headers:H()},
+    path === 'import' && body ? 120000 : 15000);
+  let j = {}; try { j = await r.json(); } catch { if(!r.ok || r.status === 0) throw netError(); }
+  if(r.status === 401 || j.code === 'admin_wifi'){ boot(); throw new Error(j.error || t('loginIntro')); }
+  if(!r.ok){ const e = new Error(j.error || t('serverSaid', r.status)); e.code = j.code; throw e; }
+  return j;
+}
+function fmtDate(d, rel){
+  if(!d) return '';
+  const dt = new Date(d + 'T00:00:00'), n = new Date(); n.setHours(0,0,0,0);
+  const diff = Math.round((dt - n) / 864e5);
+  if(rel){ if(diff === 0) return t('today'); if(diff === 1) return t('tomorrow'); if(diff > 1 && diff < 7) return t('inDays', diff); }
+  return `${dt.getDate()} ${t('months')[dt.getMonth()]}` + (dt.getFullYear() !== n.getFullYear() ? ` ${dt.getFullYear()}` : '');
+}
+function dur(m){
+  if(!m) return '0 min';
+  const d = Math.floor(m/1440), h = Math.floor(m%1440/60), mm = m%60;
+  return [d && `${d} ${t('days', d)}`, h && `${h} ${t('hours', h)}`, (!d && mm) && `${mm} min`].filter(Boolean).join(' ') || `${m} min`;
+}
+function thumb(p, cls='thumb'){ return `<div class="${cls}">${p ? `<img src="${img(p,'w185')}" loading="lazy" alt="">` : ''}</div>`; }
+function toast(msg, undo){
+  const el = $('#toast');
+  el.innerHTML = `<span>${esc(msg)}</span>` + (undo ? `<button>${t('undo')}</button>` : '');
+  if(undo) el.querySelector('button').onclick = () => { el.classList.remove('show'); undo(); };
+  el.classList.add('show'); clearTimeout(toast.t);
+  toast.t = setTimeout(() => el.classList.remove('show'), 4500);
+}
+function sheet(title, text, actions){
+  const bg = document.createElement('div'); bg.className = 'sheet-bg';
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-label="${esc(title)}"><h3>${esc(title)}</h3>${text ? `<p>${esc(text)}</p>` : ''}
+    ${actions.map((a, i) => `<button data-i="${i}" class="${a.cls || ''}">${esc(a.label)}</button>`).join('')}<button data-i="x">${t('close')}</button></div>`;
+  bg.onclick = e => {
+    if(e.target === bg){ bg.remove(); return; }
+    const i = e.target.closest('button')?.dataset.i; if(i == null) return;
+    bg.remove(); if(i !== 'x') actions[+i].fn();
+  };
+  document.body.appendChild(bg);
+}
+function setTop(title, back){ $('#topTitle').textContent = title; $('#back').hidden = !back; }
+$('#back').onclick = () => history.length > 1 ? history.back() : (location.hash = '#/shows');
+function empty(title, text, href, label){
+  return `<div class="empty"><b>${esc(title)}</b>${esc(text)}${href ? `<br><a class="btn" href="${href}">${esc(label)}</a>` : ''}</div>`;
+}
+function errorBox(e){
+  const hint = e.code === 'no_tmdb_key' || e.code === 'tmdb_bad_key' ? t('keyHint') : e.code === 'network' ? t('autoRetry') : '';
+  return `<div class="err"><b>${esc(e.message || String(e))}</b>${esc(hint)}${
+    e.code === 'network' ? `<br><button class="btn" style="margin-top:12px" onclick="retryNow()">${t('retry')}</button>` : ''}</div>`;
+}
+let retryTimer = null;
+function scheduleRetry(fn){ clearTimeout(retryTimer); retryTimer = setTimeout(fn, 5000); }
+window.retryNow = () => { clearTimeout(retryTimer); state.me ? route() : boot(); };
+function posterCard({id, type, poster, title, sub, progress, badge, green}){
+  return `<a class="pcard" href="#/${type}/${id}"><div class="pimg">
+    ${poster ? `<img src="${img(poster)}" loading="lazy" alt="">` : `<span>${esc(title)}</span>`}
+    ${badge ? `<i class="badge">${badge}</i>` : ''}
+    ${progress != null ? `<div class="tape"><div style="width:${progress}%;${green ? 'background:var(--ok)' : ''}"></div></div>` : ''}
+  </div><b>${esc(title)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</a>`;
+}
+function discCard(r){
+  return `<div class="dcard"><a class="pimg" href="#/${r.type}/${r.id}">
+      ${r.poster ? `<img src="${img(r.poster)}" loading="lazy" alt="">` : `<span>${esc(r.title)}</span>`}
+      ${r.rating ? `<span class="score">★ ${r.rating}</span>` : ''}</a>
+    <button class="qadd ${r.status ? 'in' : ''}" aria-label="${r.status ? stLabel(r.status) : t('add')}" onclick="T.quickAdd('${r.type}',${r.id},this)">${r.status ? CHECK : PLUS}</button>
+    <b>${esc(r.title)}</b>${r.year ? `<small>${r.year}</small>` : ''}</div>`;
+}
+
+/* ---------- incarcare automata la capatul listei ---------- */
+const INF = {load:null, busy:false, token:0};
+function sentinel(){ return `<div id="infsentinel" class="infs"><span class="spin"></span>${t('loading')}</div>`; }
+function infinite(load){ INF.load = load; INF.busy = false; INF.token = routeToken; checkInfinite(); }
+async function checkInfinite(){
+  const s = $('#infsentinel');
+  if(!s || !INF.load || INF.busy || INF.token !== routeToken) return;
+  if(s.getBoundingClientRect().top > innerHeight + 900) return;
+  INF.busy = true;
+  const tk = routeToken;
+  try {
+    const r = await INF.load();
+    if(tk !== routeToken) return;
+    $('#infgrid')?.insertAdjacentHTML('beforeend', r.html);
+    if(!r.more) s.remove();
+  } catch(e){ s.textContent = e.message; INF.load = null; }
+  finally { INF.busy = false; }
+  if(tk === routeToken) requestAnimationFrame(checkInfinite);
+}
+addEventListener('scroll', checkInfinite, {passive:true});
+addEventListener('resize', checkInfinite);
+
+/* ---------- barele de taburi: ascunse la derulare in jos, vizibile la derulare in sus ---------- */
+try { history.scrollRestoration = 'manual'; } catch {}
+let quietUntil = 0;
+(() => {
+  let last = scrollY;
+  addEventListener('scroll', () => {
+    const y = scrollY, dy = y - last;
+    if(Date.now() < quietUntil){ last = y; return; }      // derulare facuta de aplicatie, nu de tine
+    if(Math.abs(dy) < 6) return;
+    const hide = dy > 0 && y > 160;
+    document.querySelectorAll('.subbar').forEach(b => b.classList.toggle('hid', hide));
+    last = y;
+  }, {passive:true});
+})();
+
+/* ---------- derulare orizontala pe desktop ---------- */
+window.rowScroll = (btn, dir) => { const r = btn.parentElement.querySelector('.row'); r.scrollBy({left: dir * r.clientWidth * .85, behavior:'smooth'}); };
+document.addEventListener('wheel', e => {
+  const el = e.target.closest?.('.chips, .row');
+  if(!el || el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+  if(el.classList.contains('row') && !e.shiftKey) return;           // randurile: Shift + rotita (sau sagetile)
+  el.scrollLeft += e.deltaY; e.preventDefault();
+}, {passive:false});
+(() => {                                                              // trage cu mouse-ul
+  let el = null, x0 = 0, s0 = 0, moved = false;
+  document.addEventListener('pointerdown', e => {
+    moved = false;
+    if(e.pointerType !== 'mouse' || e.button !== 0) return;
+    el = e.target.closest('.chips, .row'); if(!el) return;
+    x0 = e.clientX; s0 = el.scrollLeft; moved = false;
+  });
+  document.addEventListener('pointermove', e => {
+    if(!el) return;
+    const dx = e.clientX - x0;
+    if(Math.abs(dx) > 5){ moved = true; el.scrollLeft = s0 - dx; el.classList.add('dragging'); }
+  });
+  document.addEventListener('pointerup', () => { if(el) el.classList.remove('dragging'); el = null; });
+  document.addEventListener('click', e => { if(moved){ e.preventDefault(); e.stopPropagation(); moved = false; } }, true);
+})();
+
+/* ---------- trage in jos pentru reimprospatare ---------- */
+(() => {
+  const ind = document.createElement('div'); ind.id = 'ptr'; document.body.appendChild(ind);
+  let y0 = null, dy = 0, busy = false;
+  const LIMIT = 80;
+  addEventListener('touchstart', e => { if(!busy && state.me && scrollY <= 0 && !document.querySelector('.sheet-bg')) { y0 = e.touches[0].clientY; dy = 0; } }, {passive:true});
+  addEventListener('touchmove', e => {
+    if(y0 == null) return;
+    dy = e.touches[0].clientY - y0;
+    if(dy <= 0 || scrollY > 0){ ind.classList.remove('show'); return; }
+    ind.classList.add('show');
+    ind.style.transform = `translate(-50%, ${Math.min(dy, 120) * .6}px)`;
+    ind.textContent = dy > LIMIT ? t('releaseRefresh') : t('pullRefresh');
+  }, {passive:true});
+  addEventListener('touchend', async () => {
+    if(y0 == null) return;
+    const go = dy > LIMIT && scrollY <= 0; y0 = null;
+    if(!go){ ind.classList.remove('show'); ind.style.transform = ''; return; }
+    busy = true; ind.textContent = t('refreshing');
+    state.disc.data = {}; state.disc.results = [];
+    await route(true);
+    busy = false; ind.classList.remove('show'); ind.style.transform = '';
+  });
+})();
+
+/* ---------- tema ---------- */
+function getTheme(){ try { return localStorage.getItem('wt-theme') || 'auto'; } catch { return 'auto'; } }
+const THEME_BG = {dark:'#000000', grey:'#1E1F22', light:'#E9ECF4'};
+function applyTheme(){
+  const th = getTheme();
+  const eff = th === 'auto' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : (THEME_BG[th] ? th : 'dark');
+  document.documentElement.dataset.theme = eff;
+  document.querySelector('meta[name=theme-color]').content = THEME_BG[eff];
+}
+window.setTheme = th => { try { localStorage.setItem('wt-theme', th); } catch {} applyTheme(); softRefresh(); };
+matchMedia('(prefers-color-scheme: light)').addEventListener('change', applyTheme);
+applyTheme();
+function themeRow(){
+  const th = getTheme();
+  return `<div><span>${t('theme')}</span><div class="seg seg4">${[['auto', t('themeAuto')], ['dark', t('themeDark')], ['grey', t('themeGrey')], ['light', t('themeLight')]].map(([k, l]) =>
+    `<button class="${th === k ? 'on' : ''}" onclick="setTheme('${k}')">${l}</button>`).join('')}</div></div>
+    <div class="rowline" style="margin-top:14px"><span>${t('language')}</span>${langSwitch()}</div>`;
+}
+function pwForm(){
+  return `<form class="inline" id="pwform" style="margin-top:16px"><input name="old" type="password" placeholder="${t('oldPw')}" autocomplete="current-password" required>
+    <input name="new" type="password" placeholder="${t('newPw')}" autocomplete="new-password" required><button class="btn ghost">${t('change')}</button></form>`;
+}
+
+/* ---------- autentificare ---------- */
+function showApp(on){ $('#topbar').hidden = !on; $('#tabs').hidden = !on; }
+async function boot(){
+  let me;
+  applyLang();
+  clearTimeout(retryTimer);
+  try { me = await (await fetchT('/api/me', {cache:'no-store', headers:H()})).json(); }
+  catch {
+    if(!state.me){ showApp(false); main.innerHTML = `<div class="auth"><div class="authbox">${errorBox(netError())}</div></div>`; }
+    else main.innerHTML = errorBox(netError());
+    scheduleRetry(boot); return;
+  }
+  state.me = me.user;
+  applyLang();
+  if(me.user){ buildNav(); showApp(true); route(); return; }
+  showApp(false);
+  authScreen(me.setup_needed ? 'setup' : 'login', me);
+}
+function authScreen(mode, me){
+  const setup = mode === 'setup';
+  const top = `<div style="display:flex;justify-content:flex-end;margin-bottom:10px">${langSwitch()}</div><img src="/icon-192.png" alt=""><h1>Watch Time</h1>`;
+  if(setup && !me.local){
+    main.innerHTML = `<div class="auth"><div class="authbox">${top}<p>${t('firstSetupWifi')}</p></div></div>`;
+    return;
+  }
+  main.innerHTML = `<div class="auth"><form class="authbox" id="authf">${top}
+    <p>${setup ? t('setupIntro') : me.admin_blocked ? t('adminBlocked') : t('loginIntro')}</p>
+    <label class="field"><span>${t('username')}</span><input name="username" autocomplete="username" autocapitalize="none" autocorrect="off" required value="${setup ? 'admin' : ''}"></label>
+    <label class="field"><span>${t('password')}</span><input name="password" type="password" autocomplete="${setup ? 'new-password' : 'current-password'}" required></label>
+    ${setup ? `<label class="field"><span>${t('password2')}</span><input name="password2" type="password" autocomplete="new-password" required></label>` : ''}
+    <button class="btn" type="submit">${setup ? t('createAccount') : t('signIn')}</button>
+    <div class="formerr" id="ferr"></div></form></div>`;
+  $('#authf').onsubmit = async ev => {
+    ev.preventDefault();
+    const f = Object.fromEntries(new FormData(ev.target));
+    if(setup && f.password !== f.password2){ $('#ferr').textContent = t('pwMismatch'); return; }
+    try {
+      const r = await fetchT('/api/' + mode, {method:'POST', headers:{'Content-Type':'application/json', ...H()}, body:JSON.stringify({username:f.username, password:f.password})});
+      const j = await r.json().catch(() => ({}));
+      if(!r.ok) throw new Error(j.error || t('error'));
+      const chosen = getLang();
+      location.hash = ''; await boot();
+      if(state.me && !state.me.lang) setLang(chosen);   // pastreaza limba aleasa la logare
+    } catch(e){ $('#ferr').textContent = e.message; }
+  };
+}
+
+/* ---------- router ---------- */
+async function route(soft){
+  if(!state.me) return;
+  let [name, arg] = location.hash.replace(/^#\/?/, '').split('/');
+  const allowed = state.me.is_admin ? ADMIN_TABS : [...USER_TABS, 'tv', 'movie', 'library', 'lists', 'ep'];
+  if(!allowed.includes(name)) name = allowed[0];
+  document.querySelectorAll('.tabs a').forEach(a => a.classList.toggle('on', a.dataset.v === (['library', 'ep', 'tv'].includes(name) ? 'shows' : name === 'lists' ? 'profile' : name)));
+  const tk = ++routeToken, y = scrollY;
+  quietUntil = Date.now() + 1500;
+  const anc = $('#anchor'), ancTop = soft && anc ? anc.getBoundingClientRect().top : null;
+  if(!soft){ main.innerHTML = `<div class="loading">${t('loading')}</div>`; scrollTo(0, 0); }
+  try {
+    const html = await views[name](arg);
+    if(tk !== routeToken) return;
+    if(html != null) main.innerHTML = html;
+    const a2 = $('#anchor');
+    const restore = !soft && navBack && SCROLL[location.hash] != null ? SCROLL[location.hash] : null;
+    navBack = false;
+    if(restore != null){ quietUntil = Date.now() + 800; scrollTo(0, restore); }
+    else if(a2 && ancTop != null) scrollTo(0, scrollY + a2.getBoundingClientRect().top - ancTop);
+    else if(a2 && (!soft || !anc)) toAnchor();
+    else if(soft) scrollTo(0, y);
+    afterRender[name]?.(arg);
+  } catch(e){
+    if(tk !== routeToken || !state.me) return;
+    if(soft && e.code === 'network' && main.children.length && !main.querySelector('.err')){ toast(e.message); return; }  // pastreaza ce e pe ecran
+    main.innerHTML = errorBox(e);
+    if(e.code === 'network') scheduleRetry(() => route());
+  }
+}
+const softRefresh = () => route(true);
+function toAnchor(){
+  const a = $('#anchor'); if(!a) return;
+  const bar = $('.subbar');
+  document.querySelectorAll('.subbar').forEach(b => b.classList.remove('hid'));
+  quietUntil = Date.now() + 600;
+  scrollTo(0, a.getBoundingClientRect().top + scrollY - $('#topbar').offsetHeight - (bar ? bar.offsetHeight : 0));
+}
+window.showsTab = k => { state.showsTab = k; route().then(toAnchor); };
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden){ hiddenAt = Date.now(); return; }
+  if(hiddenAt && Date.now() - hiddenAt > 60000){ clearTimeout(retryTimer); state.me ? route(true) : boot(); }
+  hiddenAt = 0;
+});
+addEventListener('pageshow', e => { if(e.persisted) boot(); });
+
+/* ---------- 2. la Inapoi, lista revine unde erai ---------- */
+const SCROLL = {}, NAV = [location.hash];
+let navBack = false;
+addEventListener('hashchange', e => {
+  const oldH = new URL(e.oldURL).hash, newH = location.hash;
+  SCROLL[oldH] = scrollY;
+  navBack = NAV.length > 1 && NAV[NAV.length - 2] === newH;
+  if(navBack) NAV.pop(); else NAV.push(newH);
+  if(NAV.length > 50) NAV.splice(0, NAV.length - 50);
+  route();
+});
+
+/* ---------- actiuni ---------- */
+async function act(fn, msg){
+  try { const r = await fn(); if(r?.rewatch_done) toast(t('rewatchDone')); else if(msg) toast(msg); softRefresh(); return r; }
+  catch(e){ toast(e.message); }
+}
+window.quickWatch = async (btn, id, s, e, rt) => {
+  btn.disabled = true; btn.classList.add('on');
+  try {
+    const r = await api('play', {type:'tv', id, season:s, episode:e, runtime:rt});
+    if(r.rewatch_done) toast(t('rewatchDone'));
+    else toast(t('markedWatched', `S${s} E${e}`), async () => { await api('unplay', {type:'tv', id, season:s, episode:e}); softRefresh(); });
+    softRefresh();
+  } catch(err){ btn.disabled = false; btn.classList.remove('on'); toast(err.message); }
+};
+window.T = {
+  status: (type, id, st) => act(() => api('status', {type, id, status:st}), t('movedTo', stLabel(st))),
+  rate: (type, id, r, cur) => act(() => api('rate', {type, id, rating: r === cur ? null : r})),
+  remove: (type, id) => sheet(type === 'tv' ? t('delShow') : t('delMovie'), type === 'tv' ? t('delShowText') : t('delMovieText'),
+    [{label:t('remove'), cls:'dan', fn:() => act(() => api('remove', {type, id}), t('removed'))}]),
+  ep: (id, s, e, count, done, rt) => {
+    const play = () => api('play', {type:'tv', id, season:s, episode:e, runtime:rt});
+    if(!done) return act(play);
+    sheet(`S${s} E${e}`, t('watchedTimes', count), [
+      {label:t('watchAgain', count + 1), cls:'pri', fn:() => act(play, t('epWatchedTimes', `S${s} E${e}`, count + 1))},
+      {label:t('removePlay'), cls:'dan', fn:() => act(() => api('unplay', {type:'tv', id, season:s, episode:e}))},
+    ]);
+  },
+  season: (id, n, full) => act(() => api('season', {type:'tv', id, season:n, watched:!full}), full ? t('seasonUnmarked', n) : t('seasonMarked', n)),
+  upto: (id, s, e) => act(() => api('upto', {type:'tv', id, season:s, episode:e}), t('uptoDone', `S${s} E${e}`)),
+  rewatch: (id, stop) => stop
+    ? sheet(t('stopRewatchQ'), t('stopRewatchText'), [{label:t('stop'), cls:'dan', fn:() => act(() => api('rewatch', {type:'tv', id, stop:true}), t('rewatchStopped'))}])
+    : act(() => api('rewatch', {type:'tv', id}), t('nowRewatching')),
+  movieWatched: async (id, btn) => {
+    btn.disabled = true; btn.classList.add('in');
+    try {
+      await api('status', {type:'movie', id, status:'watched'});
+      toast(t('markedMovie'), async () => { await api('status', {type:'movie', id, status:'watchlist'}); softRefresh(); });
+      softRefresh();
+    } catch(e){ btn.disabled = false; btn.classList.remove('in'); toast(e.message); }
+  },
+  epAct: (a, id, s, e, rt) => act(() => api(a, {type:'tv', id, season:s, episode:e, runtime:rt}),
+    a === 'play' ? t('markedWatched', `S${s} E${e}`) : t('playRemoved')),
+  movieMenu: (id, n, title) => sheet(title, t('movieWatched', n), [
+    {label:t('watchAgain', n + 1), cls:'pri', fn:() => act(() => api('play', {type:'movie', id}), t('playAdded'))},
+    {label:t('removePlay'), cls:'dan', fn:() => act(() => api('unplay', {type:'movie', id}), t('playRemoved'))},
+  ]),
+  moviePlay: (id, add) => act(() => api(add ? 'play' : 'unplay', {type:'movie', id}), add ? t('playAdded') : t('playRemoved')),
+  toggle: async (id, n, el) => {
+    const box = el.closest('.season').querySelector('.eps');
+    if(state.open.set.has(n)){ state.open.set.delete(n); box.hidden = true; return; }
+    state.open.set.add(n); box.hidden = false; box.innerHTML = `<div class="loading">${t('loading')}</div>`;
+    try { const r = await api(`tv/${id}/season/${n}`); box.innerHTML = episodesHtml(id, n, r.episodes, r.th); }
+    catch(e){ box.innerHTML = errorBox(e); }
+  },
+  quickAdd: async (type, id, btn) => {
+    if(btn.classList.contains('in')){ location.hash = `#/${type}/${id}`; return; }
+    btn.disabled = true;
+    try {
+      const r = await api('add', {type, id}); const st = r.item.status;
+      btn.classList.add('in'); btn.innerHTML = CHECK; btn.disabled = false;
+      markStatus(type, id, st); toast(t('addedTo', stLabel(st)));
+    } catch(e){ btn.disabled = false; toast(e.message); }
+  },
+  logout: async () => { try { await fetchT('/api/logout', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'}); } catch {} state.me = null; location.hash = ''; boot(); },
+};
+function markStatus(type, id, st){
+  for(const list of [state.search.results, state.disc.results, ...Object.values(state.disc.data).flatMap(d => d.sections.map(s => s.items))])
+    list.forEach(x => { if(x.type === type && x.id === id) x.status = st; });
+}
+function episodesHtml(id, n, eps, th){
+  if(!eps.length) return `<div class="loading">${t('noEpisodes')}</div>`;
+  return eps.map(e => `<div class="ep ${e.done ? 'done' : ''} ${e.aired ? '' : 'future'}">
+    <span class="num">${e.episode}</span>
+    <div><a class="eplink" href="#/ep/${id}-${n}-${e.episode}"><b>${esc(e.name)}</b></a><small>${e.air_date ? fmtDate(e.air_date) : t('unknownDate')}${e.runtime ? `, ${e.runtime} min` : ''}</small>${
+      e.count > 1 || (th > 1 && e.count) ? `<span class="xcount">${e.count}×</span>` : ''}${
+      (!e.done && e.aired && e.episode > 1) ? `<button class="upto" onclick="T.upto(${id},${n},${e.episode})">${t('uptoHere')}</button>` : ''}</div>
+    ${e.aired ? `<button class="tick" aria-label="${e.done ? t('watchedTimes', e.count) : t('markWatched')}" onclick="T.ep(${id},${n},${e.episode},${e.count},${e.done},${e.runtime || 'null'})">${CHECK}</button>` : '<span></span>'}
+  </div>`).join('');
+}
+function daysTo(d){ const a = new Date(d + 'T00:00:00'), n = new Date(); n.setHours(0,0,0,0); return Math.round((a - n) / 864e5); }
+function countdown(d){
+  if(!d) return `<div class="days"><small>${t('noDate')}</small></div>`;
+  const n = daysTo(d);
+  if(n <= 0) return `<div class="days"><b class="w">${t('todayBig')}</b></div>`;
+  if(n === 1) return `<div class="days"><b class="w">${t('tomorrowBig')}</b></div>`;
+  return `<div class="days"><b>${n}</b><small>${t('daysBig', n)}</small></div>`;
+}
+function progThumb(r){
+  const pct = r.aired ? Math.min(100, Math.round(r.watched / r.aired * 100)) : 0;
+  return `<div class="thumb">${r.poster ? `<img src="${img(r.poster,'w185')}" loading="lazy" alt="">` : ''}
+    <div class="tape"><div style="width:${pct}%;${r.status === 'rewatching' ? 'background:var(--ok)' : ''}"></div></div></div>`;
+}
+function epCard(r, ep, sub, tag){
+  return `<div class="card">
+    <a href="#/tv/${r.id}">${progThumb(r)}</a>
+    <a class="info" href="#/ep/${r.id}-${ep.season}-${ep.episode}"><b>${esc(r.title)}</b>
+      <span class="code">${code(ep)}${tag}</span><span class="epname">${esc(ep.name)}</span><small>${sub}</small></a>
+    <button class="check" aria-label="${t('markWatched')} ${code(ep)}" onclick="quickWatch(this,${r.id},${ep.season},${ep.episode},${ep.runtime || 'null'})">${CHECK}</button>
+  </div>`;
+}
+function historyHtml(){
+  const H = state.history;
+  if(!H.items.length) return '';
+  const rows = [...H.items].reverse();
+  return `<section class="hist" aria-label="${t('watchedH')}">
+    ${H.more ? `<button class="btn ghost more" style="margin:8px auto 14px" onclick="histMore(this)">${t('older')}</button>` : ''}
+    <h2 style="margin-top:4px">${t('watchedH')}</h2>
+    ${rows.map(r => `<a class="hrow" href="#/tv/${r.tmdb_id}">${thumb(r.poster)}<div class="info"><b>${esc(r.title)}</b>
+      <span><span class="code">S${r.season} E${r.episode}</span> ${esc(r.name)}</span></div>
+      <small class="muted">${fmtDate((r.watched_at || '').slice(0, 10), true)}</small></a>`).join('')}
+    </section>`;
+}
+window.histMore = async btn => {
+  btn.disabled = true;
+  try {
+    const H = state.history, r = await api(`history?limit=30&offset=${H.items.length}`);
+    const sec = $('.hist'), before = sec.offsetHeight;
+    H.items.push(...r.items); H.more = r.more;
+    sec.outerHTML = historyHtml();
+    scrollBy(0, $('.hist').offsetHeight - before);
+  } catch(e){ btn.disabled = false; toast(e.message); }
+};
+const LT = {};
+const fold = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const SORTERS = {
+  added:(a, b) => (b.added_at || '').localeCompare(a.added_at || ''),
+  title:(a, b) => a.title.localeCompare(b.title, getLang()),
+  year_new:(a, b) => (b.year || '').localeCompare(a.year || '') || a.title.localeCompare(b.title),
+  year_old:(a, b) => (a.year || '9999').localeCompare(b.year || '9999') || a.title.localeCompare(b.title),
+  rating:(a, b) => (b.rating || 0) - (a.rating || 0) || a.title.localeCompare(b.title),
+  watched:(a, b) => (b.watched_at || '').localeCompare(a.watched_at || ''),
+  release:(a, b) => (a.release_date || '9999').localeCompare(b.release_date || '9999'),
+  progress:(a, b) => (b.aired ? b.watched / b.aired : 0) - (a.aired ? a.watched / a.aired : 0) || a.title.localeCompare(b.title),
+};
+function listTools(key, sorts, items, render, opt = {}){
+  let pref = {}; try { pref = JSON.parse(localStorage.getItem('wt-sort') || '{}'); } catch {}
+  const st = LT[key] || (LT[key] = {q:'', sort: sorts.includes(pref[key]) ? pref[key] : sorts[0]});
+  if(!sorts.includes(st.sort)) st.sort = sorts[0];
+  const qs = opt.qKey ? (LT[opt.qKey] || (LT[opt.qKey] = {q:''})) : st;
+  LT.current = {key, items, render, sorts, all:opt.all, renderAll:opt.renderAll, qs};
+  return `<div class="tools"><input id="lq" type="search" placeholder="${opt.placeholder || t('filterPh')}" value="${esc(qs.q)}" autocomplete="off" enterkeyhint="search">
+    <select id="lsort" aria-label="${t('sortBy')}">${sorts.map(k => `<option value="${k}" ${st.sort === k ? 'selected' : ''}>${t('sorts')[k]}</option>`).join('')}</select></div>
+    <div id="lbody">${toolsBody()}</div>`;
+}
+function toolsBody(){
+  const c = LT.current, st = LT[c.key], q = fold(c.qs.q);
+  const wide = q && c.all;                       // cu text in cautare: cauta in toate categoriile
+  const rows = (wide ? c.all : c.items).filter(i => !q || fold(i.title).includes(q)).sort(SORTERS[st.sort]);
+  if(!rows.length) return `<p class="muted" style="text-align:center;padding:30px 0">${t('noMatch')}</p>`;
+  return wide ? `<p class="muted" style="margin:0 0 10px;font-size:13.5px">${t('allCatResults', rows.length)}</p>` + c.renderAll(rows) : c.render(rows);
+}
+function bindTools(){
+  const q = $('#lq'), so = $('#lsort'); if(!q || !LT.current) return;
+  const st = LT[LT.current.key];
+  q.oninput = () => { LT.current.qs.q = q.value; $('#lbody').innerHTML = toolsBody(); };
+  so.onchange = () => {
+    st.sort = so.value;
+    try { const p = JSON.parse(localStorage.getItem('wt-sort') || '{}'); p[LT.current.key] = st.sort; localStorage.setItem('wt-sort', JSON.stringify(p)); } catch {}
+    $('#lbody').innerHTML = toolsBody();
+  };
+}
+function watchedMovieCard(i){
+  return `<div class="dcard"><a class="pimg" href="#/movie/${i.tmdb_id}">${i.poster ? `<img src="${img(i.poster)}" loading="lazy" alt="">` : `<span>${esc(i.title)}</span>`}
+      ${i.plays > 1 ? `<i class="badge left">${i.plays}×</i>` : ''}</a>
+    <button class="qadd watch in" aria-label="${t('movieWatched', i.plays || 1)}" onclick="T.movieMenu(${i.tmdb_id},${i.plays || 1},'${esc(i.title).replace(/'/g, '&#39;')}')">${CHECK}</button>
+    <b>${esc(i.title)}</b><small>${i.watched_at ? t('watchedOn', fmtDate(i.watched_at.slice(0, 10))) : (i.year || '')}</small></div>`;
+}
+function stars(type, id, r){
+  return `<div class="stars" aria-label="${t('rating')}">${[1,2,3,4,5].map(n => `<button class="${r >= n ? 'on' : ''}" aria-label="${t('stars', n)}" onclick="T.rate('${type}',${id},${n},${r || 0})">★</button>`).join('')}</div>`;
+}
+function typeToggle(cur, fn){
+  return `<div class="toggle" role="tablist">${['tv', 'movie'].map(k =>
+    `<button role="tab" aria-selected="${cur === k}" class="${cur === k ? 'on' : ''}" onclick="${fn}('${k}')">${t(k)}</button>`).join('')}</div>`;
+}
+function trailerBtn(d, type){
+  const url = d.trailer ? `https://www.youtube.com/watch?v=${encodeURIComponent(d.trailer)}`
+    : `https://www.youtube.com/results?search_query=${encodeURIComponent(`${d.title} ${d.year || ''} ${type === 'tv' ? 'series' : ''} trailer`.replace(/\s+/g, ' '))}`;
+  return `<a class="btn trailer" href="${url}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>${t('trailer')}</a>`;
+}
+function webBtn(d, type){
+  const q = `${d.title} ${d.year || ''} ${type === 'tv' ? t('webTv') : t('webMovie')}`.replace(/\s+/g, ' ').trim();
+  return `<a class="btn ghost webbtn" href="https://www.google.com/search?q=${encodeURIComponent(q)}" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>${t('searchWeb')}</a>`;
+}
+function hero(d, facts){
+  return `<section class="hero" style="--bd:url('${img(d.backdrop, 'w780')}')"><div class="in">
+    ${d.poster ? `<img class="poster" src="${img(d.poster)}" alt="">` : '<div class="poster"></div>'}
+    <div><h1>${esc(d.title)}</h1><div class="facts">${facts}</div>
+    ${d.genres.length ? `<div class="facts" style="margin-top:4px">${esc(d.genres.join(', '))}</div>` : ''}
+    ${d.trailerType ? `<div class="herobtns">${trailerBtn(d, d.trailerType)}${webBtn(d, d.trailerType)}</div>` : ''}</div></div></section>`;
+}
+
+/* ---------- ecrane ---------- */
+const afterRender = {
+  search(){
+    const inp = $('#q'); if(!inp) return;
+    if(!state.search.q) inp.focus();
+    let tm; inp.oninput = () => { clearTimeout(tm); tm = setTimeout(() => runSearch(inp.value), 350); };
+    if(state.search.results.length) searchInfinite();
+  },
+};
+const views = {
+  async shows(){
+    setTop(t('tabs').shows);
+    const [d, hist] = await Promise.all([api('shows'), api('history?limit=30')]);
+    state.history = hist;
+    const tab = state.showsTab;
+    const tabs = [['towatch', t('tabToWatch'), d.to_watch.length], ['notstarted', t('tabNotStarted'), d.not_started.length], ['soon', t('tabSoon'), d.coming_soon.length]];
+    let h = `<div class="subbar"><div class="toggle tabs3" role="tablist">${tabs.map(([k, l, n]) =>
+        `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" onclick="showsTab('${k}')">${l}${n ? `<span class="n">${n}</span>` : ''}</button>`).join('')}</div></div>`;
+    h += historyHtml();
+    h += `<div id="anchor">${hist.items.length ? `<button class="hint" onclick="scrollTo({top:0,behavior:'smooth'})">↑ ${t('scrollHint')}</button>` : ''}
+      <div style="text-align:right;margin:-4px 0 10px"><a class="link" href="#/lists/tv-all">${t('collection')} ›</a></div>`;
+    if(tab === 'towatch'){
+      h += d.to_watch.length ? `<div class="list">${d.to_watch.map(r => epCard(r, r.ep, r.remaining > 1 ? t('moreAfter', r.remaining - 1) : t('lastAired'),
+          r.status === 'rewatching' ? `<span class="rw">${t('rewatchTag')}</span>` : (r.ep.episode === 1 && r.ep.season > 1 ? `<span class="rw new">${t('newSeason')}</span>` : ''))).join('')}</div>`
+        : empty(t('emptyToWatch'), t('emptyToWatchText'), '#/discover', t('openDiscover'));
+    } else if(tab === 'notstarted'){
+      h += d.not_started.length ? `<div class="list">${d.not_started.map(r => epCard(r, r.ep, t('epsProg', 0, r.aired), '')).join('')}</div>`
+        : empty(t('emptyNotStarted'), t('emptyNotStartedText'), '#/discover', t('openDiscover'));
+    } else {
+      h += d.coming_soon.length ? `<div class="list">${d.coming_soon.map(r => `
+        <a class="card" href="#/tv/${r.id}">${progThumb(r)}
+          <div class="info"><b>${esc(r.title)}</b><span class="code">${code(r)}${r.episode === 1 ? `<span class="rw new">${r.season === 1 ? t('premiere') : t('newSeason')}</span>` : ''}</span>
+          <span class="epname">${esc(r.name)}</span><small>${fmtDate(r.air_date)}</small></div>
+          ${countdown(r.air_date)}</a>`).join('')}</div>`
+        : empty(t('emptySoon'), t('emptySoonText'));
+    }
+    return h + '</div>';
+  },
+
+  async lists(arg){
+    setTop(t('myLists'), true);
+    const [type, cat] = (arg || 'tv-all').split('-');
+    const {items} = await api('library?type=' + type);
+    const cats = type === 'tv' ? ['watching','rewatching','plan','completed','stopped'] : ['watchlist','watched'];
+    const lbl = k => type === 'tv' ? t('filters')[k] : stLabel(k);
+    const cnt = k => k === 'all' ? items.length : items.filter(i => i.status === k).length;
+    const shown = cat === 'all' ? cats.filter(k => cnt(k)) : [cat];
+    let h = `<div class="subbar"><div class="toggle" role="tablist">${['tv', 'movie'].map(k =>
+      `<button role="tab" aria-selected="${type === k}" class="${type === k ? 'on' : ''}" onclick="location.hash='#/lists/${k}-all'">${t(k)}</button>`).join('')}</div>
+      <div class="chips">${['all', ...cats].filter(k => k === 'all' || cnt(k) || k === cat).map(k =>
+        `<button class="chip ${cat === k ? 'on' : ''}" onclick="location.hash='#/lists/${type}-${k}'">${k === 'all' ? t('allItems') : lbl(k)}<span class="n">${cnt(k)}</span></button>`).join('')}</div></div>`;
+    if(!items.length) return h + empty(t('emptyList'), type === 'tv' ? t('emptyListText') : t('noMoviesText'), '#/discover', t('openDiscover'));
+    const sorts = type === 'tv' ? ['title', 'added', 'year_new', 'year_old', 'rating', 'progress'] : ['title', 'added', 'year_new', 'year_old', 'rating', 'watched', 'release'];
+    const pool = items.filter(i => shown.includes(i.status));
+    return h + listTools('lists-' + type, sorts, pool, rows => shown.map(k => {
+      const list = rows.filter(i => i.status === k);
+      if(!list.length) return '';
+      return `<h2>${lbl(k)}<span class="n">${list.length}</span></h2><div class="grid">${list.map(i => type === 'tv'
+        ? posterCard({id:i.tmdb_id, type:'tv', poster:i.poster, title:i.title, progress: i.aired ? Math.round(i.watched / i.aired * 100) : 0,
+            green: i.status === 'rewatching', sub: i.aired ? t('epsProg', i.watched, i.aired) : (t('tmdb')[i.show_status] || '')})
+        : posterCard({id:i.tmdb_id, type:'movie', poster:i.poster, title:i.title, badge: i.plays > 1 ? `${i.plays}×` : '',
+            sub: i.release_date && i.release_date > new Date().toISOString().slice(0, 10) ? t('comingOut', fmtDate(i.release_date)) : i.year})).join('')}</div>`;
+    }).join(''));
+  },
+
+  async library(){
+    setTop(t('tabs').library, true);
+    const {items} = await api('library?type=tv');
+    const F = ['watching','rewatching','plan','completed','stopped','all'];
+    const cnt = k => k === 'all' ? items.length : items.filter(i => i.status === k).length;
+    const list = items.filter(i => state.showsFilter === 'all' || i.status === state.showsFilter);
+    return `<div class="chips">${F.filter(k => k !== 'rewatching' || cnt(k) || state.showsFilter === k).map(k =>
+        `<button class="chip ${state.showsFilter === k ? 'on' : ''}" onclick="state.showsFilter='${k}';softRefresh()">${t('filters')[k]}<span class="n">${cnt(k)}</span></button>`).join('')}</div>` +
+      (list.length ? `<div class="grid">${list.map(i => posterCard({id:i.tmdb_id, type:'tv', poster:i.poster, title:i.title,
+        progress: i.aired ? Math.round(i.watched / i.aired * 100) : 0, green: i.status === 'rewatching',
+        badge: ['watching', 'rewatching'].includes(i.status) && i.remaining ? i.remaining : '',
+        sub: i.status === 'rewatching' ? t('rewatchProg', i.watched, i.aired) : i.remaining ? t('epsProg', i.watched, i.aired)
+          : i.next_air ? t('newOn', fmtDate(i.next_air, true)) : (t('tmdb')[i.show_status] || '')
+      })).join('')}</div>` : empty(t('emptyList'), t('emptyListText'), '#/discover', t('openDiscover')));
+  },
+
+  async movies(){
+    setTop(t('tabs').movies);
+    const {items} = await api('library?type=movie');
+    const today = new Date().toISOString().slice(0, 10);
+    const upcoming = i => i.status === 'watchlist' && i.release_date && i.release_date > today;
+    const groups = {
+      watchlist: items.filter(i => i.status === 'watchlist' && !upcoming(i)),
+      soon: items.filter(upcoming),
+      watched: items.filter(i => i.status === 'watched'),
+    };
+    const f = groups[state.moviesFilter] ? state.moviesFilter : 'watchlist';
+    const labels = {watchlist:t('mvToWatch'), soon:t('mvSoon'), watched:t('mvWatched')};
+    let h = `<div class="subbar"><div class="toggle tabs3" role="tablist">${Object.keys(groups).map(k =>
+      `<button role="tab" aria-selected="${f === k}" class="${f === k ? 'on' : ''}" onclick="state.moviesFilter='${k}';softRefresh()">${labels[k]}${groups[k].length ? `<span class="n">${groups[k].length}</span>` : ''}</button>`).join('')}</div></div>`;
+    const list = groups[f];
+    if(!list.length) return h + (f === 'soon' ? empty(t('noSoonMovies'), t('noSoonMoviesText'), '#/discover', t('openDiscover'))
+      : empty(t('noMovies'), t('noMoviesText'), '#/discover', t('openDiscover')));
+    const sorts = f === 'soon' ? ['release', 'title', 'added'] : f === 'watched' ? ['watched', 'title', 'year_new', 'year_old', 'rating', 'added']
+      : ['added', 'title', 'year_new', 'year_old', 'release', 'rating'];
+    return h + listTools('movies-' + f, sorts, list, rows => {
+      if(f === 'soon') return `<div class="list">${rows.map(i => `
+        <a class="card" href="#/movie/${i.tmdb_id}">${thumb(i.poster)}
+          <div class="info"><b>${esc(i.title)}</b><span class="code">${t('comingOut', fmtDate(i.release_date))}</span><small>${t('notReleased')}</small></div>
+          ${countdown(i.release_date)}</a>`).join('')}</div>`;
+      if(f === 'watchlist') return `<div class="grid">${rows.map(i => `<div class="dcard">
+          <a class="pimg" href="#/movie/${i.tmdb_id}">${i.poster ? `<img src="${img(i.poster)}" loading="lazy" alt="">` : `<span>${esc(i.title)}</span>`}</a>
+          <button class="qadd watch" aria-label="${t('markWatched')}" onclick="T.movieWatched(${i.tmdb_id},this)">${CHECK}</button>
+          <b>${esc(i.title)}</b>${i.year ? `<small>${i.year}</small>` : ''}</div>`).join('')}</div>`;
+      return `<div class="grid">${rows.map(watchedMovieCard).join('')}</div>`;
+    }, {all: items, qKey: 'movies-q', placeholder: t('searchAllMovies'), renderAll: rows => `<div class="grid">${rows.map(i => {
+      const poster = `<a class="pimg" href="#/movie/${i.tmdb_id}">${i.poster ? `<img src="${img(i.poster)}" loading="lazy" alt="">` : `<span>${esc(i.title)}</span>`}
+        ${i.plays > 1 ? `<i class="badge">${i.plays}×</i>` : ''}</a>`;
+      if(i.status === 'watched') return watchedMovieCard(i);
+      if(upcoming(i)) return `<div class="dcard">${poster}<b>${esc(i.title)}</b><small style="color:var(--ok)">${t('comingOut', fmtDate(i.release_date))}</small></div>`;
+      return `<div class="dcard">${poster}<button class="qadd watch" aria-label="${t('markWatched')}" onclick="T.movieWatched(${i.tmdb_id},this)">${CHECK}</button>
+        <b>${esc(i.title)}</b><small>${t('mvToWatch')}${i.year ? `, ${i.year}` : ''}</small></div>`;
+    }).join('')}</div>`});
+  },
+
+  async discover(){
+    setTop(t('tabs').discover);
+    const D = state.disc;
+    if(!D.data[D.type]) D.data[D.type] = await api('discover?type=' + D.type);
+    const data = D.data[D.type];
+    let h = typeToggle(D.type, 'discType');
+    h += `<div class="chips sticky"><button class="chip ${!D.genre && !D.section ? 'on' : ''}" onclick="discGenre(null)">${t('recommended')}</button>${
+      data.genres.map(g => `<button class="chip ${D.genre === g.id ? 'on' : ''}" onclick="discGenre(${g.id})">${esc(g.name)}</button>`).join('')}</div>`;
+    if(D.genre || D.section){
+      if(!D.results.length){ const r = await api(discQuery(1)); D.results = r.results; D.page = 1; D.pages = r.total_pages; }
+      if(D.section) h += `<div class="rowline"><h2>${esc(t('sections')[D.section])}</h2><button class="link" onclick="discSection(null)">${t('backToDiscover')}</button></div>`;
+      h += `<div class="grid" id="infgrid">${D.results.map(discCard).join('')}</div>` + (D.page < D.pages ? sentinel() : '');
+    } else {
+      h += data.sections.filter(s => s.items.length).map(s => `<div class="rowline"><h2>${esc(t('sections')[s.key] || s.key)}</h2>
+        <button class="link" onclick="discSection('${s.key}')">${t('seeAll')} ›</button></div>
+        <div class="rowwrap"><button class="rarr l" aria-label="${t('scrollLeft')}" onclick="rowScroll(this,-1)">‹</button><div class="row">${s.items.map(discCard).join('')}</div><button class="rarr r" aria-label="${t('scrollRight')}" onclick="rowScroll(this,1)">›</button></div>`).join('');
+    }
+    return h;
+  },
+
+  async search(){
+    setTop(t('tabs').search);
+    const S = state.search;
+    return typeToggle(S.type, 'searchType') +
+      `<div class="searchbox"><input id="q" type="search" placeholder="${S.type === 'tv' ? t('showName') : t('movieName')}" autocomplete="off" enterkeyhint="search" value="${esc(S.q)}"></div><div id="results">${resultsHtml()}</div>`;
+  },
+
+  async tv(id){
+    setTop('', true); id = +id;
+    if(state.open.id !== id) state.open = {id, set:new Set()};
+    const d = await api('tv/' + id); d.trailerType = 'tv';
+    const eps = {};
+    await Promise.all([...state.open.set].map(async n => { eps[n] = await api(`tv/${id}/season/${n}`); }));
+    const st = d.item?.status, rw = st === 'rewatching';
+    const pct = d.aired ? Math.round(d.watched / d.aired * 100) : 0;
+    let h = hero(d, `${d.year ? `<span>${d.year}</span>` : ''}${d.networks.length ? `<span>${esc(d.networks.join(', '))}</span>` : ''}
+        <span class="${d.status === 'Returning Series' ? 'live' : ''}">${t('tmdb')[d.status] || esc(d.status || '')}</span>`);
+    h += `<div class="block">${rw ? `<p style="margin:0 0 10px;font-weight:700">${t('rewatchStatus', d.item.rewatch)}</p>` : ''}
+      <div class="seg">${TV_KEYS.map(k => `<button class="${st === k ? 'on' : ''}" onclick="T.status('tv',${id},'${k}')">${stLabel(k)}</button>`).join('')}</div>
+      ${d.item ? `<div class="rowline" style="margin-top:12px">${stars('tv', id, d.item.rating)}<button class="btn danger" onclick="T.remove('tv',${id})">${t('remove')}</button></div>` : ''}</div>`;
+    h += `<div class="block ${rw ? 'rwbox' : ''}"><div class="prog"><span><span class="big">${d.watched}</span> <span class="muted">${rw ? t('ofRewatched', d.aired, d.item.rewatch) : t('ofAired', d.aired)}</span></span><span class="muted">${pct}%</span></div>
+      <div class="bar"><div style="width:${pct}%"></div></div>
+      ${d.next ? `<div class="nextrow"><div class="info"><small>${rw ? t('nextRewatch') : t('next')}</small><span class="code">${code(d.next)}</span><span class="epname">${esc(d.next.name)}</span></div>
+        <button class="check" aria-label="${t('markWatched')}" onclick="quickWatch(this,${id},${d.next.season},${d.next.episode},${d.next.runtime || 'null'})">${CHECK}</button></div>` : ''}
+      ${d.next_air ? `<div class="nextrow"><div class="info"><small>${t('newEpisode')}</small><span class="code">${code(d.next_air)}</span><span class="epname">${esc(d.next_air.name)}</span></div>
+        <div class="date">${fmtDate(d.next_air.air_date, true)}</div></div>` : ''}
+      ${rw ? `<div class="nextrow"><span class="muted">${t('rewatchInfo')}</span><button class="btn ghost" onclick="T.rewatch(${id},true)">${t('stop')}</button></div>`
+        : d.seen_all ? `<div class="nextrow"><span class="muted">${t('seenAll', d.total_plays > d.aired ? d.total_plays - d.aired : 0)}</span><button class="btn" onclick="T.rewatch(${id})">${t('startRewatch')}</button></div>` : ''}
+      </div>`;
+    if(d.overview) h += `<p class="overview">${esc(d.overview)}</p>`;
+    h += `<h2>${t('seasons')}</h2>` + d.seasons.map(s => {
+      const full = s.aired > 0 && s.watched >= s.aired, open = state.open.set.has(s.n);
+      return `<div class="season"><div class="shead">
+        <button class="t" onclick="T.toggle(${id},${s.n},this)">${s.n === 0 ? t('specials') : t('season', s.n)} <span class="muted">${open ? '▴' : '▾'}</span></button>
+        <span class="c ${full ? 'full' : ''}">${s.watched}/${s.aired || s.episode_count}</span>
+        ${s.aired ? `<button class="sall" onclick="T.season(${id},${s.n},${full})">${full ? t('unmark') : t('wholeSeason')}</button>` : '<span></span>'}
+      </div><div class="eps" ${open ? '' : 'hidden'}>${open && eps[s.n] ? episodesHtml(id, s.n, eps[s.n].episodes, eps[s.n].th) : ''}</div></div>`;
+    }).join('');
+    return h;
+  },
+
+  async ep(arg){
+    setTop('', true);
+    const [id, sn, en] = (arg || '').split('-').map(Number);
+    const [d, se] = await Promise.all([api('tv/' + id), api(`tv/${id}/season/${sn}`)]);
+    const eps = se.episodes, k = eps.findIndex(e => e.episode === en), e = eps[k];
+    if(!e) return errorBox(new Error(t('noEpisodes')));
+    const prev = eps[k - 1], next = eps[k + 1];
+    let h = `<section class="hero ephero" style="--bd:url('${img(e.still || d.backdrop, 'w780')}')"><div class="in1">
+      <a class="link" href="#/tv/${id}">${esc(d.title)} ›</a>
+      <div class="code" style="font-size:17px;margin-top:6px">${code(e)}${e.count > 1 ? `<span class="xcount">${e.count}×</span>` : ''}</div>
+      <h1>${esc(e.name)}</h1>
+      <div class="facts">${e.air_date ? `<span class="${e.aired ? '' : 'live'}">${e.aired ? fmtDate(e.air_date) : t('comingOut', fmtDate(e.air_date))}</span>` : ''}${e.runtime ? `<span>${e.runtime} min</span>` : ''}</div></div></section>`;
+    if(e.aired){
+      h += `<div class="block">` + (e.done
+        ? `<div class="rowline"><div class="info"><b style="color:var(--ok)">✓ ${t('watchedTimes', e.count)}</b></div>
+             <button class="btn" onclick="T.epAct('play',${id},${sn},${en},${e.runtime || 'null'})">${t('watchedAgain')}</button></div>
+           <button class="btn danger" style="margin-top:8px" onclick="T.epAct('unplay',${id},${sn},${en})">${t('removePlay')}</button>`
+        : `<button class="btn" style="width:100%;padding:14px;font-size:16px" onclick="T.epAct('play',${id},${sn},${en},${e.runtime || 'null'})">${t('markWatched')}</button>
+           ${en > 1 || sn > 1 ? `<button class="btn ghost" style="width:100%;margin-top:8px" onclick="T.upto(${id},${sn},${en})">${t('markUpto')}</button>` : ''}`) + `</div>`;
+    } else h += `<div class="block rowline"><span class="muted">${t('notAiredYet')}</span>${countdown(e.air_date)}</div>`;
+    h += `<p class="overview">${esc(e.overview || t('noOverview'))}</p>`;
+    h += `<div class="epnav">${prev ? `<a class="btn ghost" href="#/ep/${id}-${sn}-${prev.episode}">‹ ${code(prev)}</a>` : '<span></span>'}
+      ${next ? `<a class="btn ghost" href="#/ep/${id}-${sn}-${next.episode}">${code(next)} ›</a>` : '<span></span>'}</div>`;
+    return h;
+  },
+
+  async movie(id){
+    setTop('', true); id = +id;
+    const d = await api('movie/' + id); d.trailerType = 'movie';
+    const st = d.item?.status;
+    const future = d.release_date && daysTo(d.release_date) > 0;
+    let h = hero(d, `${d.release_date ? `<span class="${future ? 'live' : ''}">${future ? t('comingOut', fmtDate(d.release_date)) : (fmtDate(d.release_date).includes(d.year) ? fmtDate(d.release_date) : fmtDate(d.release_date) + ' ' + d.year)}</span>` : ''}${d.runtime ? `<span>${dur(d.runtime)}</span>` : ''}`);
+    if(future) h += `<div class="block rowline"><span class="muted">${t('notReleased')}</span>${countdown(d.release_date)}</div>`;
+    h += `<div class="block"><div class="seg">${MV_KEYS.map(k => `<button class="${st === k ? 'on' : ''}" onclick="T.status('movie',${id},'${k}')">${stLabel(k)}</button>`).join('')}</div>
+      ${d.plays ? `<div class="nextrow"><div class="info"><b>${t('movieWatched', d.plays)}</b><small>${t('lastTime', fmtDate(d.last_watched.slice(0, 10)))}</small></div>
+        <button class="btn" onclick="T.moviePlay(${id},true)">${t('watchedAgain')}</button></div>
+        <button class="btn danger" style="margin-top:6px" onclick="T.moviePlay(${id},false)">${t('removePlay')}</button>` : ''}
+      ${d.item ? `<div class="rowline" style="margin-top:12px">${stars('movie', id, d.item.rating)}<button class="btn danger" onclick="T.remove('movie',${id})">${t('remove')}</button></div>` : ''}</div>`;
+    if(d.overview) h += `<p class="overview">${esc(d.overview)}</p>`;
+    return h;
+  },
+
+  async profile(){
+    setTop(t('tabs').profile);
+    const me = state.me;
+    const [s, tvl, mvl, imp] = await Promise.all([api('stats'), api('library?type=tv'), api('library?type=movie'), api('import')]);
+    const max = Math.max(1, ...s.months.map(m => m.count));
+    const catRows = (type, items, cats, lbl) => cats.map(k => [k, items.filter(i => i.status === k).length]).filter(([, n]) => n)
+      .map(([k, n]) => `<a class="catrow" href="#/lists/${type}-${k}"><span>${lbl(k)}</span><span class="cnt">${n}<i class="chev">${CHEV}</i></span></a>`).join('');
+    const listsBlock = `<h2>${t('myLists')}</h2><div class="block lists2">
+      <div><a class="cathead" href="#/lists/tv-all">${t('tv')}<span class="cnt">${tvl.items.length}<i class="chev">${CHEV}</i></span></a>
+        ${catRows('tv', tvl.items, ['watching','rewatching','plan','completed','stopped'], k => t('filters')[k])}</div>
+      <div><a class="cathead" href="#/lists/movie-all">${t('movie')}<span class="cnt">${mvl.items.length}<i class="chev">${CHEV}</i></span></a>
+        ${catRows('movie', mvl.items, ['watchlist','watched'], stLabel)}</div></div>`;
+    const importBlock = `<h2>${t('importH')}</h2><div class="block"><p class="muted" style="margin:0 0 12px;font-size:14px">${t('importText')}</p>
+      <label class="btn ghost" style="display:inline-block;cursor:pointer">${t('chooseFile')}<input type="file" id="impfile" accept=".zip,.json,application/zip,application/json" hidden></label>
+      <p id="impstat" style="margin:12px 0 0;font-weight:600">${imp.state === 'running' ? t('importing', imp.done, imp.total) : imp.state === 'done' ? t('importDone', imp.result) : ''}</p></div>`;
+    if(imp.state === 'running') setTimeout(pollImport, 1000);
+    return `<div class="who"><div class="avatar">${esc(me.username[0].toUpperCase())}</div><div><b style="font-size:19px">${esc(me.username)}</b>
+      <small class="muted" style="display:block">${t('user')}</small></div></div>
+      <h2>${t('stats')}</h2><div class="statgrid">
+        <div class="stat"><div class="v">${dur(s.tv_minutes)}</div><div class="l">${t('onShows')}</div></div>
+        <div class="stat"><div class="v">${s.episodes}</div><div class="l">${t('epsWatched')}${s.rewatched_eps ? t('rewatchedN', s.rewatched_eps) : ''}</div></div>
+        <div class="stat"><div class="v">${dur(s.movie_minutes)}</div><div class="l">${t('onMovies')}</div></div>
+        <div class="stat"><div class="v">${s.movies}</div><div class="l">${t('moviePlays')}</div></div>
+      </div>
+      <h2>${t('perMonth')}</h2>
+      <div class="chart">${s.months.map(m => `<div class="col">${m.count ? `<em>${m.count}</em>` : ''}<i style="height:${m.count / max * 100}%"></i><span>${t('months')[+m.month.slice(5) - 1]}</span></div>`).join('')}</div>
+      ${s.top.length ? `<h2>${t('mostWatched')}</h2>` + s.top.map((r, i) => `<a class="toprow" href="#/tv/${r.id}"><span class="muted">${i + 1}</span>
+        ${r.poster ? `<img src="${img(r.poster, 'w92')}" alt="">` : '<div class="ph"></div>'}<b>${esc(r.title)}</b><span class="muted">${r.c} ep.</span></a>`).join('') : ''}
+      ${listsBlock}
+      <h2>${t('settingsH')}</h2><div class="block">${themeRow()}${pwForm()}
+      <div class="rowline" style="margin-top:16px"><span>${t('backup')}</span><a class="btn ghost" href="/api/export">${t('download')}</a></div>
+      </div>${importBlock}
+      <div class="rowline" style="margin-top:18px"><span></span><button class="btn danger" onclick="T.logout()">${t('logout')}</button></div>`;
+  },
+
+  async users(){
+    setTop(t('tabs').users);
+    const {users} = await api('admin/users');
+    const normal = users.filter(u => !u.is_admin), admins = users.filter(u => u.is_admin);
+    const row = u => `<button class="urow" style="width:100%;text-align:left" onclick="userMenu(${u.id},'${esc(u.username)}',${u.id === state.me.id})">
+      <div><b>${esc(u.username)}</b>${u.id === state.me.id ? ` <span class="muted">${t('you')}</span>` : ''}
+      <small>${u.is_admin ? t('adminCreated', fmtDate(u.created_at.slice(0, 10)))
+        : t('userSummary', u.shows, u.movies, u.plays) + (u.last_activity ? t('activeOn', fmtDate(u.last_activity.slice(0, 10))) : '')}</small></div>
+      <span class="muted" style="font-size:13px">${u.sessions ? `${u.sessions} ${t('devices', u.sessions)}` : ''}</span><span class="muted">›</span></button>`;
+    return `<h2>${t('newAccount')}</h2><div class="block"><form id="newuser">
+        <label class="field"><span>${t('username')}</span><input name="username" autocapitalize="none" autocorrect="off" required></label>
+        <label class="field"><span>${t('pwMin')}</span><input name="password" type="text" autocomplete="off" required></label>
+        <label style="display:flex;gap:10px;align-items:center;margin:4px 0 12px"><input type="checkbox" name="is_admin" style="width:20px;height:20px">
+          <span>${t('adminAccount')} <small class="muted">${t('adminAccountHint')}</small></span></label>
+        <button class="btn">${t('createAccount')}</button></form></div>
+      <h2>${t('users')}<span class="n">${normal.length}</span></h2><div class="block">${normal.length ? normal.map(row).join('')
+        : `<p class="muted" style="margin:0">${t('noUsers')}</p>`}</div>
+      <h2>${t('admins')}<span class="n">${admins.length}</span></h2><div class="block">${admins.map(row).join('')}</div>`;
+  },
+
+  async settings(){
+    setTop(t('tabs').settings);
+    const c = await api('admin/settings');
+    const box = 'width:100%;font:inherit;font-size:16px;padding:12px;border-radius:13px;border:1px solid var(--line);background:var(--panel2);color:var(--text)';
+    return `<form id="setform">
+      <h2>${t('tmdbH')}</h2><div class="block">
+        <label class="field"><span>${t('apiKey')} ${c.tmdb_key_set ? t('keySet', esc(c.tmdb_key_hint)) : t('keyMissing')}</span>
+          <input name="tmdb_key" type="password" autocomplete="off" placeholder="${c.tmdb_key_set ? t('keepKey') : t('keyPlaceholder')}"></label>
+        <label class="field"><span>${t('tmdbLang')}</span>
+          <select name="language" style="${box}">${c.languages.map(l => `<option ${l === c.language ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        <button type="button" class="btn ghost" onclick="act(() => api('admin/tmdb-test', {}), t('tmdbOk'))">${t('testConn')}</button></div>
+      <h2>${t('security')}</h2><div class="block">
+        <label class="field"><span>${t('homeNets')}</span>
+          <textarea name="lan_networks" rows="4" style="${box};font-size:15px">${esc(c.lan_networks.join('\n'))}</textarea></label>
+        <label class="field"><span>${t('sessionDays')}</span><input name="session_days" type="number" min="1" max="3650" value="${c.session_days}"></label>
+        <label class="field"><span>${t('maxFails')}</span><input name="max_login_fails" type="number" min="3" max="100" value="${c.max_login_fails}"></label>
+      </div>
+      <button class="btn" style="width:100%;margin-top:14px;padding:14px">${t('saveSettings')}</button></form>
+      <h2>${t('myAccount')}</h2><div class="block">${themeRow()}${pwForm()}
+        <div class="rowline" style="margin-top:16px"><span></span><button class="btn danger" onclick="T.logout()">${t('logout')}</button></div></div>`;
+  },
+
+  async system(){
+    setTop(t('tabs').system);
+    const s = await api('admin/system');
+    const mb = (s.db_bytes / 1048576).toFixed(1);
+    const up = s.uptime > 86400 ? `${Math.floor(s.uptime / 86400)} ${t('days', 2)}` : `${Math.floor(s.uptime / 3600)} ${t('hours', 2)}`;
+    return `<div class="statgrid" style="margin-top:8px">
+        <div class="stat"><div class="v">${s.users}</div><div class="l">${t('sysUsers')}</div></div>
+        <div class="stat"><div class="v">${s.items}</div><div class="l">${t('sysItems')}</div></div>
+        <div class="stat"><div class="v">${s.plays}</div><div class="l">${t('sysPlays')}</div></div>
+        <div class="stat"><div class="v">${mb} MB</div><div class="l">${t('sysDb')}</div></div>
+        <div class="stat"><div class="v">${up}</div><div class="l">${t('sysUptime')}</div></div>
+        <div class="stat"><div class="v">${s.cache}</div><div class="l">${t('sysCache')}</div></div>
+      </div>
+      <h2>${t('maintenance')}</h2><div class="block">
+        <div class="rowline"><div><b>${t('fullBackup')}</b><small class="muted" style="display:block">${t('fullBackupText')}</small></div>
+          <a class="btn" href="/api/admin/backup">${t('download')}</a></div>
+        <div class="rowline" style="margin-top:16px"><div><b>${t('clearCache')}</b><small class="muted" style="display:block">${t('clearCacheText')}</small></div>
+          <button class="btn ghost" onclick="act(() => api('admin/cache-clear', {}), t('cacheCleared'))">${t('clear')}</button></div></div>
+      <p class="muted" style="font-size:13.5px;margin-top:18px">${esc(t('serverInfo', s.host, s.python))} <code>${esc(s.restart_cmd)}</code></p>`;
+  },
+};
+async function pollImport(){
+  const el = $('#impstat'); if(!el) return;
+  try {
+    const j = await api('import');
+    if(j.state === 'running'){ el.textContent = t('importing', j.done, j.total); setTimeout(pollImport, 1000); }
+    else if(j.state === 'done'){ el.textContent = t('importDone', j.result); toast(t('importDone', j.result)); }
+  } catch(e){ el.textContent = e.message; }
+}
+afterRender.profile = afterRender.settings = () => {
+  const fi = $('#impfile');
+  if(fi) fi.onchange = () => {
+    const f = fi.files[0]; if(!f) return;
+    const el = $('#impstat'); el.textContent = t('readingFile');
+    const rd = new FileReader();
+    rd.onload = async () => {
+      try {
+        const j = await api('import', {name:f.name, data:String(rd.result).split(',')[1] || ''});
+        el.textContent = t('importing', j.done, j.total); setTimeout(pollImport, 1000);
+      } catch(e){ el.textContent = e.message; }
+      fi.value = '';
+    };
+    rd.readAsDataURL(f);
+  };
+  const pf = $('#pwform');
+  if(pf) pf.onsubmit = ev => { ev.preventDefault(); const f = Object.fromEntries(new FormData(pf));
+    act(() => api('password', f), t('pwChanged')); };
+  const sf = $('#setform');
+  if(sf) sf.onsubmit = ev => { ev.preventDefault(); const f = Object.fromEntries(new FormData(sf));
+    act(() => api('admin/settings', {tmdb_key:f.tmdb_key, language:f.language, lan_networks:f.lan_networks.split('\n'),
+      session_days:+f.session_days, max_login_fails:+f.max_login_fails}), t('settingsSaved')); };
+};
+afterRender.movies = bindTools;
+afterRender.lists = bindTools;
+afterRender.discover = () => {
+  infinite(async () => {
+    const D = state.disc, r = await api(discQuery(D.page + 1));
+    D.results.push(...r.results); D.page = r.page; D.pages = r.total_pages;
+    return {html: r.results.map(discCard).join(''), more: D.page < D.pages};
+  });
+};
+afterRender.users = () => {
+  const nu = $('#newuser');
+  if(nu) nu.onsubmit = ev => { ev.preventDefault(); const f = Object.fromEntries(new FormData(nu));
+    act(() => api('admin/users/create', {username:f.username, password:f.password, is_admin:!!f.is_admin}), t('accountCreated', f.username)); };
+};
+window.userMenu = (id, name, self) => sheet(name, self ? t('selfAdmin') : t('whatToDo'), [
+  {label:t('changePw'), fn:() => { const p = prompt(t('newPwFor', name)); if(p) act(() => api('admin/users/password', {id, password:p}), t('pwChanged')); }},
+  {label:t('rename'), fn:() => { const n = prompt(t('newName'), name); if(n && n !== name) act(() => api('admin/users/rename', {id, username:n}), t('renamed')); }},
+  ...(self ? [] : [
+    {label:t('logoutAll'), fn:() => act(() => api('admin/users/logout', {id}), t('loggedOut', name))},
+    {label:t('deleteAccount'), cls:'dan', fn:() => sheet(t('deleteAccountQ', name), t('deleteAccountText'),
+      [{label:t('deleteForever'), cls:'dan', fn:() => act(() => api('admin/users/delete', {id}), t('accountDeleted'))}])},
+  ]),
+]);
+window.discType = k => { const D = state.disc; if(D.type === k) return; D.type = k; D.genre = null; D.section = null; D.results = []; route(); };
+window.discGenre = g => { const D = state.disc; D.genre = g; D.section = null; D.results = []; route(); };
+window.discSection = k => { const D = state.disc; D.section = k; D.genre = null; D.results = []; route(); };
+function discQuery(page){ const D = state.disc; return D.section ? `discover?type=${D.type}&section=${D.section}&page=${page}` : `discover?type=${D.type}&genre=${D.genre}&page=${page}`; }
+window.searchType = k => { const S = state.search; if(S.type === k) return; S.type = k; S.results = []; S.page = 1; S.pages = 1; route(); if(S.q) setTimeout(() => runSearch(S.q), 0); };
+function resultRow(r){
+  return `<div class="result">
+    <a href="#/${r.type}/${r.id}">${thumb(r.poster)}</a>
+    <a href="#/${r.type}/${r.id}"><b>${esc(r.title)}</b> <span class="muted">${r.year || ''}</span><p>${esc(r.overview)}</p></a>
+    ${r.status ? `<span class="tag">${stLabel(r.status)}</span>` : `<button class="btn" onclick="searchAdd('${r.type}',${r.id},this)">${t('add')}</button>`}
+  </div>`;
+}
+function resultsHtml(){
+  const S = state.search;
+  if(!S.q) return empty(S.type === 'tv' ? t('searchShow') : t('searchMovie'), t('searchText'));
+  if(!S.results.length) return empty(t('noResults'), t('noResultsText', S.q));
+  return `<div id="infgrid">${S.results.map(resultRow).join('')}</div>` + (S.page < S.pages ? sentinel() : '');
+}
+function searchInfinite(){
+  const S = state.search;
+  infinite(async () => {
+    const q = S.q, type = S.type;
+    const r = await api(`search?type=${type}&page=${S.page + 1}&q=` + encodeURIComponent(q));
+    if(q !== S.q || type !== S.type) return {html:'', more:false};
+    S.results.push(...r.results); S.page = r.page; S.pages = r.total_pages;
+    return {html: r.results.map(resultRow).join(''), more: S.page < S.pages};
+  });
+}
+window.searchAdd = async (type, id, btn) => {
+  btn.disabled = true;
+  try { const r = await api('add', {type, id}); const st = r.item.status;
+    btn.outerHTML = `<span class="tag">${stLabel(st)}</span>`; markStatus(type, id, st); toast(t('addedTo', stLabel(st)));
+  } catch(e){ btn.disabled = false; toast(e.message); }
+};
+async function runSearch(v){
+  const S = state.search; S.q = v.trim();
+  const box = $('#results'); if(!box) return;
+  if(!S.q){ S.results = []; box.innerHTML = resultsHtml(); return; }
+  const type = S.type;
+  try { const r = await api(`search?type=${type}&q=` + encodeURIComponent(S.q));
+    if(S.q !== v.trim() || S.type !== type) return;
+    S.results = r.results; S.page = r.page || 1; S.pages = r.total_pages || 1; box.innerHTML = resultsHtml(); searchInfinite(); }
+  catch(e){ box.innerHTML = errorBox(e); }
+}
+
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "tmdb_key": "PUNE_AICI_CHEIA_TMDB",
+  "language": "en-US",
+  "port": 8765,
+  "host": "0.0.0.0"
+}

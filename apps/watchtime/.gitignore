@@ -1,0 +1,7 @@
+# date si setari locale - nu se urca niciodata
+config.json
+data/
+__pycache__/
+*.pyc
+*.db
+*.db-*
