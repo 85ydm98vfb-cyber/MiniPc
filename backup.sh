@@ -14,7 +14,8 @@
 #
 # Pe stick se creeaza folderul minipc-backup/ cu cate un subfolder pe data, ex:
 #   minipc-backup/2026-09-28_03-30/ps-games/PlayStation_Games.json
-#   minipc-backup/2026-09-28_03-30/watchtime/watchtime.db
+#   minipc-backup/2026-09-28_03-30/watchtime/watchtime.db          (tot: conturi, parole, setari)
+#   minipc-backup/2026-09-28_03-30/watchtime/conturi/alex.json     (un cont; Profil -> Importa date)
 # Intre backup-urile de luni ai oricum copiile zilnice pe care PS Games le face singur
 # in /opt/ps-games/data/backup; stick-ul e copia din afara mini PC-ului.
 # Backup-ul automat scrie DOAR pe stick-uri care au deja folderul minipc-backup/
@@ -227,6 +228,23 @@ dst.close(); src.close()
 sys.exit(0 if ok == "ok" else 1)
 PY
     [ -f /opt/watchtime/config.json ] && cp -p /opt/watchtime/config.json "$TMP/watchtime/"
+    # + cate un JSON pe cont, in formatul aplicatiei (Profil -> Copie de siguranta),
+    #   generat din copia de mai sus; se importa din Profil -> Importa date
+    python3 - "$TMP/watchtime/watchtime.db" "$TMP/watchtime/conturi" <<'PY' || warn "Nu am putut genera JSON-urile pe conturi (baza .db e salvata)."
+import datetime, json, os, sqlite3, sys
+db = sqlite3.connect(sys.argv[1]); db.row_factory = sqlite3.Row
+out = sys.argv[2]; os.makedirs(out, exist_ok=True)
+now = datetime.datetime.now().isoformat(timespec="seconds")
+for u in db.execute("SELECT id, username FROM users WHERE is_admin = 0"):
+    doc = {"exported_at": now,
+           "items": [dict(r) for r in db.execute("SELECT * FROM items WHERE user_id=?", (u["id"],))],
+           "plays": [dict(r) for r in db.execute("SELECT * FROM plays WHERE user_id=?", (u["id"],))]}
+    name = u["username"]
+    if name.startswith("."):
+        name = "_" + name
+    with open(os.path.join(out, name + ".json"), "w", encoding="utf-8") as f:
+        json.dump(doc, f, ensure_ascii=False)
+PY
     done_any=1
 fi
 
