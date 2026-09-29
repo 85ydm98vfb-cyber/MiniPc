@@ -24,6 +24,7 @@ from concurrent.futures import ThreadPoolExecutor
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import imdb
 import push
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -434,10 +435,41 @@ def ensure_item(u, t, i, status=None):
     return get_item(u, t, i)
 
 
-def end_rewatch(u, sid, it):
-    new = it["prev_status"] if it["prev_status"] in TV_STATUSES else "completed"
+def end_rewatch(u, sid, it, restore=False):
+    """restore=True: rewatch anulat (revine la statusul de dinainte); altfel rewatch terminat -> Terminat."""
+    new = (it["prev_status"] if it["prev_status"] in TV_STATUSES else "watching") if restore else "completed"
     x("UPDATE items SET status=?, rewatch=0, prev_status=NULL WHERE user_id=? AND type='tv' AND tmdb_id=?", (new, u, sid))
     return new
+
+
+def first_episode(d):
+    seas = [s for s in real_seasons(d) if s.get("episode_count")]
+    return (seas[0]["season_number"], 1) if seas else None
+
+
+def auto_rewatch(u, sid, season, episode):
+    it = get_item(u, "tv", sid)
+    if not it or it["status"] == "rewatching":
+        return
+    d = tv_details(sid)
+    if (season, episode) != first_episode(d):
+        return
+    cnt = counts(u, sid)
+    k = cnt.get((season, episode), 0)
+    if k < 2:
+        return
+    w, a, rem = progress(u, sid, d, k - 1, cnt)
+    if a and rem == 0:        # runda anterioara completa -> incepe runda k
+        x("UPDATE items SET status='rewatching', prev_status=?, rewatch=? WHERE user_id=? AND type='tv' AND tmdb_id=?",
+          (it["status"] if it["status"] in TV_STATUSES else "completed", k, u, sid))
+
+
+def undo_auto_rewatch(u, sid):
+    """Daca ai scos vizionarea care pornise runda si nu mai exista niciun episod vazut de N ori, runda se anuleaza."""
+    it = get_item(u, "tv", sid)
+    if it and it["status"] == "rewatching" and it["rewatch"]:
+        if not any(c >= it["rewatch"] for (s_, _), c in counts(u, sid).items() if s_ > 0):
+            end_rewatch(u, sid, it, restore=True)
 
 
 def after_watch(u, sid):
@@ -545,6 +577,41 @@ def trailer(t, i):
     return None
 
 
+IMDB = imdb.Ratings(os.path.join(BASE, "data"), log=lambda m: print(f"{now()} {m}", flush=True))
+
+
+def imdb_info(tconst):
+    if not tconst:
+        return None
+    r = IMDB.get(tconst)
+    return {"id": tconst, "rating": r["rating"], "votes": r["votes"]} if r else {"id": tconst, "rating": None, "votes": None}
+
+
+def tv_imdb_id(sid):
+    try:
+        return tmdb(f"/tv/{sid}/external_ids", ttl=30 * 86400).get("imdb_id")
+    except ApiError:
+        return None
+
+
+def api_tv_imdb(sid):
+    tid = tv_imdb_id(sid)
+    if not tid:
+        return {"seasons": [], "state": "no_id"}
+    rows = IMDB.episodes(tid)
+    if rows is None:
+        return {"seasons": [], "state": "pending"}
+    seas = {}
+    for sn, en, r, v in rows:
+        if sn > 0:
+            seas.setdefault(sn, []).append({"e": en, "r": r, "v": v})
+    out = []
+    for sn in sorted(seas):
+        eps = sorted(seas[sn], key=lambda e: e["e"])
+        out.append({"n": sn, "eps": eps, "avg": round(sum(e["r"] for e in eps) / len(eps), 1)})
+    return {"seasons": out, "state": "ok", "imdb": tid}
+
+
 def api_tv(u, sid):
     d = tv_details(sid)
     it = get_item(u, "tv", sid)
@@ -577,6 +644,7 @@ def api_tv(u, sid):
         "next_air": ep_out(d["next_episode_to_air"]) if d.get("next_episode_to_air") else None,
         "next": next_episode(u, sid, d, th, cnt) if it else None,
         "trailer": trailer("tv", sid),
+        "imdb": imdb_info(tv_imdb_id(sid)),
     }
 
 
@@ -588,6 +656,26 @@ def api_season(u, sid, n):
     for e in s.get("episodes", []):
         c = cnt.get((n, e["episode_number"]), 0)
         out.append(dict(ep_out(e), count=c, done=c >= th, aired=aired(e.get("air_date"))))
+    by_se = {}
+    tid = tv_imdb_id(sid) if IMDB.conn else None
+    for sn, en, r, v in (IMDB.episodes(tid) or []) if tid else []:
+        by_se[(sn, en)] = (r, v)
+    if by_se:
+        for ep in out:
+            hit = by_se.get((n, ep["episode"]))
+            if hit:
+                ep["imdb"] = {"id": None, "rating": hit[0], "votes": hit[1]}
+    elif IMDB.conn:  # nota IMDb pe episod (ID-ul IMDb al episodului vine de la TMDB, nota din setul IMDb local)
+        def rate(ep):
+            if not ep["aired"]:
+                return
+            try:
+                tid = tmdb(f"/tv/{sid}/season/{n}/episode/{ep['episode']}/external_ids", ttl=30 * 86400).get("imdb_id")
+            except ApiError:
+                return
+            ep["imdb"] = imdb_info(tid)
+        with ThreadPoolExecutor(6) as ex:
+            list(ex.map(rate, out))
     return {"episodes": out, "th": th}
 
 
@@ -603,7 +691,7 @@ def api_movie(u, mid):
             "year": year_of(d.get("release_date")), "overview": d.get("overview") or "", "runtime": d.get("runtime"),
             "genres": [g["name"] for g in d.get("genres", [])], "release_date": d.get("release_date"),
             "item": it and {"status": it["status"], "rating": it["rating"]}, "plays": p["c"], "last_watched": p["last"],
-            "trailer": trailer("movie", mid)}
+            "trailer": trailer("movie", mid), "imdb": imdb_info(d.get("imdb_id"))}
 
 
 def api_library(u, qs):
@@ -1100,6 +1188,8 @@ def get_api(ctx, parts, qs):
         return api_discover(u, qs)
     if a == "tv" and len(parts) == 2:
         return api_tv(u, int(parts[1]))
+    if a == "tv" and len(parts) == 3 and parts[2] == "imdb":
+        return api_tv_imdb(int(parts[1]))
     if a == "tv" and len(parts) == 4 and parts[2] == "season":
         return api_season(u, int(parts[1]), int(parts[3]))
     if a == "movie" and len(parts) == 2:
@@ -1330,6 +1420,7 @@ def post_api(ctx, parts, b):
             return {"plays": movie_plays(u, i)["c"]}
         ensure_item(u, "tv", i)
         add_plays(u, "tv", i, [(int(b["season"]), int(b["episode"]), b.get("runtime"))])
+        auto_rewatch(u, i, int(b["season"]), int(b["episode"]))
         return after_watch(u, i)
     if a == "unplay":
         if t == "movie":
@@ -1339,6 +1430,7 @@ def post_api(ctx, parts, b):
                 x("UPDATE items SET status='watchlist' WHERE user_id=? AND type='movie' AND tmdb_id=?", (u, i))
             return {"plays": n}
         remove_plays(u, "tv", i, int(b["season"]), int(b["episode"]))
+        undo_auto_rewatch(u, i)
         return after_watch(u, i)
     if a in ("season", "upto"):
         it = ensure_item(u, "tv", i)
@@ -1371,7 +1463,7 @@ def post_api(ctx, parts, b):
         it = ensure_item(u, "tv", i)
         if b.get("stop"):
             if it["status"] == "rewatching":
-                end_rewatch(u, i, it)
+                end_rewatch(u, i, it, restore=True)
             return {"ok": True}
         d, cnt = tv_details(i), counts(u, i)
         rnd = 1
@@ -1582,6 +1674,7 @@ if __name__ == "__main__":
     x("DELETE FROM sessions WHERE expires<?", (time.time(),))
     ThreadingHTTPServer.daemon_threads = True
     threading.Thread(target=notify_scheduler, daemon=True).start()
+    threading.Thread(target=IMDB.loop, daemon=True).start()
     if not VAPID:
         print("Notificari dezactivate: instaleaza pachetul cryptography (Alpine: doas apk add py3-cryptography)", flush=True)
     srv = ThreadingHTTPServer((CFG["host"], int(CFG["port"])), Handler)

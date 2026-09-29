@@ -17,6 +17,7 @@
 <title>Watch Time</title>
 <style>
 :root{
+  --done:#34C759;--more:#C04BDB;
   --bg:#000000;--panel:#141416;--panel2:#1F1F23;--line:#2B2B30;
   --text:#F2F0EA;--muted:#9A9AA2;--accent:#F4C152;--accent-ink:#241A00;
   --ok:#5CC8B0;--danger:#E8746A;--shade:rgba(0,0,0,.55);
@@ -29,6 +30,7 @@
   color-scheme:dark;
 }
 :root[data-theme=light]{
+  --done:#1E9E45;--more:#A233C4;
   --bg:#E9ECF4;--panel:#FFFFFF;--panel2:#F0F2F8;--line:#D3D8E7;
   --text:#1A1E33;--muted:#5C6280;--accent:#D8960C;--accent-ink:#FFFFFF;
   --ok:#17917A;--danger:#C4443A;--shade:rgba(40,46,80,.18);
@@ -320,6 +322,34 @@ h2 .n{color:var(--muted);font-weight:500;margin-left:6px}
 .chk input{width:20px;height:20px;accent-color:var(--accent)}
 .notewarn{margin:0;padding:10px 12px;border-radius:10px;background:var(--panel2);border-left:3px solid var(--accent);font-size:14px}
 
+.imdb{display:inline-flex;align-items:center;gap:6px;padding:0 4px;height:36px;color:var(--text);text-decoration:none}
+.imdblogo{display:inline-block;background:#F5C518;color:#000;font:900 12.5px/1 Arial,Helvetica,sans-serif;letter-spacing:-.2px;padding:4px 5px;border-radius:4px}
+.imdb b{font-size:15px;font-weight:800}
+.imdb .of{font-size:12.5px;color:var(--muted);margin-left:-4px}
+
+.imdbmini{display:inline-flex;align-items:center;gap:4px;margin-left:8px;font-size:12.5px;font-weight:800;color:var(--text);vertical-align:1px}
+.imdbmini .imdblogo{font-size:9.5px;padding:2px 3px;border-radius:3px}
+
+.tape .done,.bar .done{background:var(--done)!important}
+.tape .upd,.bar .upd{background:var(--more)!important}
+.tape .rwb,.bar .rwb{background:var(--ok)!important}
+
+.imdbcar{grid-auto-columns:100%;gap:0;margin:0;padding:0;scroll-snap-type:x mandatory}
+.imdbcar .slide{scroll-snap-align:start;background:var(--panel);border-radius:16px;padding:12px 10px 8px;margin:0 2px}
+.slidehead{display:flex;justify-content:space-between;align-items:center;padding:0 4px 4px;font-size:14px}
+.slidehead > b{font-size:17px}
+.slidehead .imdblogo{font-size:10px;padding:2px 4px;vertical-align:1px}
+.slidefoot{text-align:center;font-size:12px;color:var(--muted);margin-top:-2px}
+.imdbsvg{width:100%;height:auto;display:block}
+.imdbsvg .g{stroke:var(--line);stroke-width:1}
+.imdbsvg .avg{stroke:var(--muted);stroke-width:1;stroke-dasharray:4 4;opacity:.7}
+.imdbsvg .ln{fill:none;stroke:var(--text);stroke-width:2;opacity:.55}
+.imdbsvg .ax{fill:var(--muted);font-size:11px}
+.imdbsvg .val{fill:var(--text);font-size:10.5px;font-weight:700}
+.dots{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:10px}
+.dots button{min-width:28px;height:28px;border-radius:14px;background:var(--panel2);color:var(--muted);font-size:12.5px;font-weight:700}
+.dots button.on{background:var(--accent);color:var(--accent-ink)}
+
 /* bottom sheet */
 .sheet-bg{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
 .sheet{width:100%;max-width:520px;background:var(--panel);border-radius:20px 20px 0 0;padding:18px 16px calc(16px + env(safe-area-inset-bottom,0px))}
@@ -479,6 +509,8 @@ const I18N = {
     notifOther:n => `Ai notificările active pe ${n} ${n == 1 ? 'dispozitiv' : 'dispozitive'}.`,
     notifTimes:'Ore de verificare (separate prin virgulă)', tzLabel:'Fus orar (gol = ora mini PC-ului)',
     serverTime:x => `Ora folosită acum: ${x}`, notifCheckNow:'Verifică acum pentru toți', notifChecking:'Verificarea a pornit',
+    imdbVotes:n => `${n} voturi pe IMDb`, imdbChart:'Note IMDb pe sezoane', avgRating:'medie', episodesAxis:'episoade',
+    imdbPending:'Graficul apare după ce serverul descarcă lista de episoade IMDb (câteva minute după repornire).',
     searchWeb:'Caută pe net', webTv:'serial', webMovie:'film',
     retry:'Reîncearcă', autoRetry:'Reîncerc automat în câteva secunde.', trailer:'Trailer',
     markUpto:'Marchează tot până aici', notAiredYet:'Nu a apărut încă', noOverview:'Fără descriere.',
@@ -594,6 +626,8 @@ const I18N = {
     notifOther:n => `You have notifications on for ${n} ${n == 1 ? 'device' : 'devices'}.`,
     notifTimes:'Check times (comma separated)', tzLabel:'Time zone (empty = mini PC time)',
     serverTime:x => `Time in use now: ${x}`, notifCheckNow:'Check now for everyone', notifChecking:'Check started',
+    imdbVotes:n => `${n} votes on IMDb`, imdbChart:'IMDb ratings by season', avgRating:'average', episodesAxis:'episodes',
+    imdbPending:'The chart appears once the server has downloaded the IMDb episode list (a few minutes after restart).',
     searchWeb:'Search the web', webTv:'TV series', webMovie:'movie',
     retry:'Try again', autoRetry:'Retrying automatically in a few seconds.', trailer:'Trailer',
     markUpto:'Mark everything up to here', notAiredYet:'Not aired yet', noOverview:'No description.',
@@ -626,7 +660,7 @@ function langSwitch(){
 }
 
 const state = {
-  me:null, showsTab:'towatch', history:{items:[], more:false}, showsFilter:'watching', moviesFilter:'watchlist', open:{id:null, set:new Set()},
+  me:null, imdbCache:{}, chartStart:null, showsTab:'towatch', history:{items:[], more:false}, showsFilter:'watching', moviesFilter:'watchlist', open:{id:null, set:new Set()},
   search:{type:'tv', q:'', results:[], page:1, pages:1},
   disc:{type:'tv', genre:null, section:null, page:1, pages:1, results:[], data:{}},
 };
@@ -717,11 +751,17 @@ function errorBox(e){
 let retryTimer = null;
 function scheduleRetry(fn){ clearTimeout(retryTimer); retryTimer = setTimeout(fn, 5000); }
 window.retryNow = () => { clearTimeout(retryTimer); state.me ? route() : boot(); };
-function posterCard({id, type, poster, title, sub, progress, badge, green}){
+function barCls(i){
+  if(i.status === 'rewatching') return 'rwb';
+  const done = i.aired > 0 && i.watched >= i.aired;
+  if(done && (i.status === 'completed' || ['Ended', 'Canceled'].includes(i.show_status))) return 'done';
+  return done ? 'upd' : '';
+}
+function posterCard({id, type, poster, title, sub, progress, badge, bar = ''}){
   return `<a class="pcard" href="#/${type}/${id}"><div class="pimg">
     ${poster ? `<img src="${img(poster)}" loading="lazy" alt="">` : `<span>${esc(title)}</span>`}
     ${badge ? `<i class="badge">${badge}</i>` : ''}
-    ${progress != null ? `<div class="tape"><div style="width:${progress}%;${green ? 'background:var(--ok)' : ''}"></div></div>` : ''}
+    ${progress != null ? `<div class="tape"><div class="${bar}" style="width:${progress}%"></div></div>` : ''}
   </div><b>${esc(title)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</a>`;
 }
 function discCard(r){
@@ -1087,6 +1127,7 @@ function episodesHtml(id, n, eps, th){
   return eps.map(e => `<div class="ep ${e.done ? 'done' : ''} ${e.aired ? '' : 'future'}">
     <span class="num">${e.episode}</span>
     <div><a class="eplink" href="#/ep/${id}-${n}-${e.episode}"><b>${esc(e.name)}</b></a><small>${e.air_date ? fmtDate(e.air_date) : t('unknownDate')}${e.runtime ? `, ${e.runtime} min` : ''}</small>${
+      e.imdb && e.imdb.rating != null ? `<span class="imdbmini"><span class="imdblogo">IMDb</span>${e.imdb.rating.toFixed(1)}</span>` : ''}${
       e.count > 1 || (th > 1 && e.count) ? `<span class="xcount">${e.count}×</span>` : ''}${
       (!e.done && e.aired && e.episode > 1) ? `<button class="upto" onclick="T.upto(${id},${n},${e.episode})">${t('uptoHere')}</button>` : ''}</div>
     ${e.aired ? `<button class="tick" aria-label="${e.done ? t('watchedTimes', e.count) : t('markWatched')}" onclick="T.ep(${id},${n},${e.episode},${e.count},${e.done},${e.runtime || 'null'})">${CHECK}</button>` : '<span></span>'}
@@ -1103,7 +1144,7 @@ function countdown(d){
 function progThumb(r){
   const pct = r.aired ? Math.min(100, Math.round(r.watched / r.aired * 100)) : 0;
   return `<div class="thumb">${r.poster ? `<img src="${img(r.poster,'w185')}" loading="lazy" alt="">` : ''}
-    <div class="tape"><div style="width:${pct}%;${r.status === 'rewatching' ? 'background:var(--ok)' : ''}"></div></div></div>`;
+    <div class="tape"><div class="${barCls(r)}" style="width:${pct}%"></div></div></div>`;
 }
 function epCard(r, ep, sub, tag){
   return `<div class="card">
@@ -1180,6 +1221,51 @@ function watchedMovieCard(i){
     <button class="qadd watch in" aria-label="${t('movieWatched', i.plays || 1)}" onclick="T.movieMenu(${i.tmdb_id},${i.plays || 1},'${esc(i.title).replace(/'/g, '&#39;')}')">${CHECK}</button>
     <b>${esc(i.title)}</b><small>${i.watched_at ? t('watchedOn', fmtDate(i.watched_at.slice(0, 10))) : (i.year || '')}</small></div>`;
 }
+/* ---------- grafic note IMDb pe sezoane ---------- */
+function rateColor(r){ return r >= 9 ? '#2FBF71' : r >= 8 ? '#8BCB4A' : r >= 7 ? '#F4C152' : r >= 6 ? '#F08A3E' : '#E5484D'; }
+function seasonSvg(se){
+  const eps = se.eps, n = eps.length, W = 340, H = 190, L = 40, R = 16, T = 26, B = 26;
+  const lo = Math.max(1, Math.floor(Math.min(...eps.map(e => e.r)) - 0.5)), hi = 10;
+  const x = i => n === 1 ? L + (W - L - R) / 2 : L + i * (W - L - R) / (n - 1);
+  const y = r => T + (hi - r) * (H - T - B) / (hi - lo);
+  const grid = [];
+  for(let v = hi; v >= lo; v -= (hi - lo > 4 ? 2 : 1)) grid.push(v);
+  const every = n > 16 ? 2 : 1, labels = n <= 14;
+  const path = eps.map((e, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(e.r).toFixed(1)}`).join(' ');
+  const avgY = y(se.avg);
+  return `<svg viewBox="0 0 ${W} ${H}" class="imdbsvg" role="img" aria-label="${esc(t('season', se.n))}">
+    ${grid.map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="g"/><text x="${L - 6}" y="${y(v) + 4}" class="ax" text-anchor="end">${v}</text>`).join('')}
+    <line x1="${L}" x2="${W - R}" y1="${avgY}" y2="${avgY}" class="avg"/>
+    <path d="${path}" class="ln"/>
+    ${eps.map((e, i) => `<circle cx="${x(i)}" cy="${y(e.r)}" r="${n > 20 ? 3.2 : 4.5}" fill="${rateColor(e.r)}"><title>E${e.e}: ${e.r}</title></circle>
+      ${labels ? `<text x="${x(i)}" y="${y(e.r) - 9}" class="val" text-anchor="middle">${e.r.toFixed(1)}</text>` : ''}
+      ${i % every === 0 ? `<text x="${x(i)}" y="${H - 8}" class="ax" text-anchor="middle">${e.e}</text>` : ''}`).join('')}
+  </svg>`;
+}
+function imdbChartHtml(r){
+  if(!r || !r.seasons || !r.seasons.length)
+    return r && r.state === 'pending' ? `<h2>${t('imdbChart')}</h2><p class="muted">${t('imdbPending')}</p>` : '';
+  return `<h2>${t('imdbChart')}</h2>
+    <div class="rowwrap"><button class="rarr l" aria-label="${t('scrollLeft')}" onclick="rowScroll(this,-1)">‹</button>
+    <div class="row imdbcar" onscroll="chartDots(this)">${r.seasons.map(se => `<div class="slide">
+      <div class="slidehead"><b>${t('season', se.n)}</b><span><span class="imdblogo">IMDb</span> ${t('avgRating')} <b style="color:${rateColor(se.avg)}">${se.avg.toFixed(1)}</b></span></div>
+      ${seasonSvg(se)}<div class="slidefoot">${t('episodesAxis')}</div></div>`).join('')}</div>
+    <button class="rarr r" aria-label="${t('scrollRight')}" onclick="rowScroll(this,1)">›</button></div>
+    ${r.seasons.length > 1 ? `<div class="dots">${r.seasons.map((se, i) => `<button aria-label="${esc(t('season', se.n))}" onclick="chartGo(${i})">${se.n}</button>`).join('')}</div>` : ''}`;
+}
+window.chartGo = i => { const c = $('.imdbcar'); if(c) c.scrollTo({left: i * c.clientWidth, behavior:'smooth'}); };
+window.chartDots = c => {
+  const i = Math.round(c.scrollLeft / c.clientWidth);
+  const id = +($('#imdbchart')?.dataset.id || 0); if(id) (state.chartIdx || (state.chartIdx = {}))[id] = i;
+  document.querySelectorAll('.dots button').forEach((b, k) => b.classList.toggle('on', k === i));
+};
+function placeChart(){
+  const c = $('.imdbcar'), id = +($('#imdbchart')?.dataset.id || 0), r = state.imdbCache[id];
+  if(!c || !r) return;
+  const saved = state.chartIdx && state.chartIdx[id];
+  const k = saved != null ? saved : Math.max(0, r.seasons.findIndex(se => se.n === state.chartStart));
+  c.scrollLeft = k * c.clientWidth; chartDots(c);
+}
 function stars(type, id, r){
   return `<div class="stars" aria-label="${t('rating')}">${[1,2,3,4,5].map(n => `<button class="${r >= n ? 'on' : ''}" aria-label="${t('stars', n)}" onclick="T.rate('${type}',${id},${n},${r || 0})">★</button>`).join('')}</div>`;
 }
@@ -1192,6 +1278,12 @@ function trailerBtn(d, type){
     : `https://www.youtube.com/results?search_query=${encodeURIComponent(`${d.title} ${d.year || ''} ${type === 'tv' ? 'series' : ''} trailer`.replace(/\s+/g, ' '))}`;
   return `<a class="btn trailer" href="${url}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>${t('trailer')}</a>`;
 }
+function imdbBadge(m){
+  if(!m || !m.id) return '';
+  const votes = m.votes ? (m.votes >= 1e6 ? (m.votes / 1e6).toFixed(1) + 'M' : m.votes >= 1e3 ? Math.round(m.votes / 1e3) + 'k' : m.votes) : '';
+  return `<a class="imdb" href="https://www.imdb.com/title/${encodeURIComponent(m.id)}/" target="_blank" rel="noopener" title="${votes ? t('imdbVotes', votes) : 'IMDb'}">
+    <span class="imdblogo">IMDb</span>${m.rating != null ? `<b>${m.rating.toFixed(1)}</b><span class="of">/10</span>` : ''}</a>`;
+}
 function webBtn(d, type){
   const q = `${d.title} ${d.year || ''} ${type === 'tv' ? t('webTv') : t('webMovie')}`.replace(/\s+/g, ' ').trim();
   return `<a class="btn ghost webbtn" href="https://www.google.com/search?q=${encodeURIComponent(q)}" target="_blank" rel="noopener">
@@ -1202,11 +1294,23 @@ function hero(d, facts){
     ${d.poster ? `<img class="poster" src="${img(d.poster)}" alt="">` : '<div class="poster"></div>'}
     <div><h1>${esc(d.title)}</h1><div class="facts">${facts}</div>
     ${d.genres.length ? `<div class="facts" style="margin-top:4px">${esc(d.genres.join(', '))}</div>` : ''}
-    ${d.trailerType ? `<div class="herobtns">${trailerBtn(d, d.trailerType)}${webBtn(d, d.trailerType)}</div>` : ''}</div></div></section>`;
+    ${d.trailerType ? `<div class="herobtns">${trailerBtn(d, d.trailerType)}${imdbBadge(d.imdb)}${webBtn(d, d.trailerType)}</div>` : ''}</div></div></section>`;
 }
 
 /* ---------- ecrane ---------- */
 const afterRender = {
+  async tv(){
+    const box = $('#imdbchart'); if(!box) return;
+    const id = +box.dataset.id;
+    placeChart();
+    if(state.imdbCache[id]) return;
+    box.innerHTML = `<h2>${t('imdbChart')}</h2><p class="muted">${t('loading')}</p>`;
+    try {
+      const r = await api(`tv/${id}/imdb`);
+      state.imdbCache[id] = r;
+      const b2 = $('#imdbchart'); if(b2 && +b2.dataset.id === id){ b2.innerHTML = imdbChartHtml(r); placeChart(); }
+    } catch { const b2 = $('#imdbchart'); if(b2) b2.innerHTML = ''; }
+  },
   search(){
     const inp = $('#q'); if(!inp) return;
     if(!state.search.q) inp.focus();
@@ -1264,7 +1368,7 @@ const views = {
       if(!list.length) return '';
       return `<h2>${lbl(k)}<span class="n">${list.length}</span></h2><div class="grid">${list.map(i => type === 'tv'
         ? posterCard({id:i.tmdb_id, type:'tv', poster:i.poster, title:i.title, progress: i.aired ? Math.round(i.watched / i.aired * 100) : 0,
-            green: i.status === 'rewatching', sub: i.aired ? t('epsProg', i.watched, i.aired) : (t('tmdb')[i.show_status] || '')})
+            bar: barCls(i), sub: i.aired ? t('epsProg', i.watched, i.aired) : (t('tmdb')[i.show_status] || '')})
         : posterCard({id:i.tmdb_id, type:'movie', poster:i.poster, title:i.title, badge: i.plays > 1 ? `${i.plays}×` : '',
             sub: i.release_date && i.release_date > new Date().toISOString().slice(0, 10) ? t('comingOut', fmtDate(i.release_date)) : i.year})).join('')}</div>`;
     }).join(''));
@@ -1279,7 +1383,7 @@ const views = {
     return `<div class="chips">${F.filter(k => k !== 'rewatching' || cnt(k) || state.showsFilter === k).map(k =>
         `<button class="chip ${state.showsFilter === k ? 'on' : ''}" onclick="state.showsFilter='${k}';softRefresh()">${t('filters')[k]}<span class="n">${cnt(k)}</span></button>`).join('')}</div>` +
       (list.length ? `<div class="grid">${list.map(i => posterCard({id:i.tmdb_id, type:'tv', poster:i.poster, title:i.title,
-        progress: i.aired ? Math.round(i.watched / i.aired * 100) : 0, green: i.status === 'rewatching',
+        progress: i.aired ? Math.round(i.watched / i.aired * 100) : 0, bar: barCls(i),
         badge: ['watching', 'rewatching'].includes(i.status) && i.remaining ? i.remaining : '',
         sub: i.status === 'rewatching' ? t('rewatchProg', i.watched, i.aired) : i.remaining ? t('epsProg', i.watched, i.aired)
           : i.next_air ? t('newOn', fmtDate(i.next_air, true)) : (t('tmdb')[i.show_status] || '')
@@ -1366,7 +1470,7 @@ const views = {
       <div class="seg">${TV_KEYS.map(k => `<button class="${st === k ? 'on' : ''}" onclick="T.status('tv',${id},'${k}')">${stLabel(k)}</button>`).join('')}</div>
       ${d.item ? `<div class="rowline" style="margin-top:12px">${stars('tv', id, d.item.rating)}<button class="btn danger" onclick="T.remove('tv',${id})">${t('remove')}</button></div>` : ''}</div>`;
     h += `<div class="block ${rw ? 'rwbox' : ''}"><div class="prog"><span><span class="big">${d.watched}</span> <span class="muted">${rw ? t('ofRewatched', d.aired, d.item.rewatch) : t('ofAired', d.aired)}</span></span><span class="muted">${pct}%</span></div>
-      <div class="bar"><div style="width:${pct}%"></div></div>
+      <div class="bar"><div class="${barCls({status:st, watched:d.watched, aired:d.aired, show_status:d.status})}" style="width:${pct}%"></div></div>
       ${d.next ? `<div class="nextrow"><div class="info"><small>${rw ? t('nextRewatch') : t('next')}</small><span class="code">${code(d.next)}</span><span class="epname">${esc(d.next.name)}</span></div>
         <button class="check" aria-label="${t('markWatched')}" onclick="quickWatch(this,${id},${d.next.season},${d.next.episode},${d.next.runtime || 'null'})">${CHECK}</button></div>` : ''}
       ${d.next_air ? `<div class="nextrow"><div class="info"><small>${t('newEpisode')}</small><span class="code">${code(d.next_air)}</span><span class="epname">${esc(d.next_air.name)}</span></div>
@@ -1383,6 +1487,8 @@ const views = {
         ${s.aired ? `<button class="sall" onclick="T.season(${id},${s.n},${full})">${full ? t('unmark') : t('wholeSeason')}</button>` : '<span></span>'}
       </div><div class="eps" ${open ? '' : 'hidden'}>${open && eps[s.n] ? episodesHtml(id, s.n, eps[s.n].episodes, eps[s.n].th) : ''}</div></div>`;
     }).join('');
+    state.chartStart = d.next ? d.next.season : null;
+    h += `<div id="imdbchart" data-id="${id}">${state.imdbCache[id] ? imdbChartHtml(state.imdbCache[id]) : ''}</div>`;
     return h;
   },
 
@@ -1397,7 +1503,8 @@ const views = {
       <a class="link" href="#/tv/${id}">${esc(d.title)} ›</a>
       <div class="code" style="font-size:17px;margin-top:6px">${code(e)}${e.count > 1 ? `<span class="xcount">${e.count}×</span>` : ''}</div>
       <h1>${esc(e.name)}</h1>
-      <div class="facts">${e.air_date ? `<span class="${e.aired ? '' : 'live'}">${e.aired ? fmtDate(e.air_date) : t('comingOut', fmtDate(e.air_date))}</span>` : ''}${e.runtime ? `<span>${e.runtime} min</span>` : ''}</div></div></section>`;
+      <div class="facts">${e.air_date ? `<span class="${e.aired ? '' : 'live'}">${e.aired ? fmtDate(e.air_date) : t('comingOut', fmtDate(e.air_date))}</span>` : ''}${e.runtime ? `<span>${e.runtime} min</span>` : ''}</div>
+      ${e.imdb ? `<div class="herobtns">${imdbBadge(e.imdb)}</div>` : ''}</div></section>`;
     if(e.aired){
       h += `<div class="block">` + (e.done
         ? `<div class="rowline"><div class="info"><b style="color:var(--ok)">✓ ${t('watchedTimes', e.count)}</b></div>
