@@ -14,8 +14,8 @@
 # Variabile (optionale, doar la --enable): OFF=23:00  ON=06:30  BACKUP_DAY=1 (0=duminica ... 6=sambata; ex. 1,4)
 # Dupa instalare, orele se schimba cel mai usor din fereastra "Program mini PC" (Remote Desktop).
 #
-# Treburile de noapte ruleaza inainte de oprire, relativ la ora de oprire:
-#   actualizari: -60 min, intretinere saptamanala: -50, lunara: -40, backup pe stick: -30.
+# Actualizarile ruleaza cu o ora inainte de oprire. Backup-ul pe stick si intretinerea (saptamanala,
+# lunara) au orele lor, alese in fereastra (tab-ul "Backup si intretinere").
 set -eu
 
 TEST_MIN="${TEST_MIN:-5}"
@@ -44,8 +44,9 @@ write_helper() {
 #!/bin/sh
 # Generat de power.sh - programul de oprire/pornire al mini PC-ului.
 #   minipc-power --status                 starea (cheie=valoare), pentru fereastra
-#   minipc-power --set OFF ON ZILE ACTIV  salveaza programul (ex: --set 23:00 06:30 1,4 1)
-#   minipc-power --backup ZILE ACTIV      zilele backup-ului pe stick (0=duminica ... 6=sambata)
+#   minipc-power --set OFF ON ACTIV       oprire / pornire (ex: --set 23:00 06:30 1)
+#   minipc-power --backup ZILE ORA ACTIV  backup pe stick (ex: --backup 1,4 22:30 1; 0=duminica ... 6=sambata)
+#   minipc-power --maint ZI ORA ZI_LUNA ORA   intretinere saptamanala + lunara (ex: --maint 6 22:10 1 22:20)
 #   minipc-power --apply                  reaplica orele din config in cron
 #   minipc-power --skip | --unskip        in seara asta nu se opreste / anuleaza
 #   minipc-power --stick-info             ultimul backup + starea stick-ului
@@ -81,18 +82,29 @@ valid_days() {
     echo "$1" | tr ',' '\n' | sort -u | tr '\n' ',' | sed 's/,$//'
 }
 backup_auto() { grep -q "^[0-9].*minipc-backup --cron" "$CRON" 2>/dev/null; }
+valid_mday() { case "$1" in [1-9]|1[0-9]|2[0-8]) return 0 ;; esac; return 1; }
 keep() { k=$(sed -n 's/.*KEEP=\([0-9]*\).*minipc-backup --cron.*/\1/p' "$CRON" 2>/dev/null | head -n 1); echo "${k:-30}"; }
 
-# muta ora unei linii din crontab: $1 text, $2 minute-ale-zilei, $3 ziua saptamanii (optional)
+# muta ora unei linii din crontab: $1 text, $2 minute-ale-zilei, $3 ziua saptamanii, $4 ziua lunii (optionale)
 set_time() {
     grep -q "$1" "$CRON" 2>/dev/null || return 0
-    awk -v pat="$1" -v m=$(( $2 % 60 )) -v h=$(( $2 / 60 )) -v d="${3:-}" \
-        'index($0, pat) { $1 = m; $2 = h; if (d != "") $5 = d } { print }' "$CRON" > "$CRON.tmp"
+    awk -v pat="$1" -v m=$(( $2 % 60 )) -v h=$(( $2 / 60 )) -v d="${3:-}" -v md="${4:-}" \
+        'index($0, pat) { $1 = m; $2 = h; if (d != "") $5 = d; if (md != "") $3 = md } { print }' "$CRON" > "$CRON.tmp"
     cat "$CRON.tmp" > "$CRON"; rm -f "$CRON.tmp"
 }
 
+# orele backup-ului si ale intretinerii: din config; la prima rulare = cele de pana acum (relative la oprire)
+[ -n "${BACKUP_TIME:-}" ]  || BACKUP_TIME=$(fmt $(before 30))
+[ -n "${WEEKLY_DAY:-}" ]   || WEEKLY_DAY=6
+[ -n "${WEEKLY_TIME:-}" ]  || WEEKLY_TIME=$(fmt $(before 50))
+[ -n "${MONTHLY_DAY:-}" ]  || MONTHLY_DAY=1
+[ -n "${MONTHLY_TIME:-}" ] || MONTHLY_TIME=$(fmt $(before 40))
+
 write_conf() {
-    printf 'OFF=%s\nON=%s\nBACKUP_DAY=%s\nENABLED=%s\n' "$OFF" "$ON" "$BACKUP_DAY" "$ENABLED" > "$CONF.tmp"
+    { printf 'OFF=%s\nON=%s\nENABLED=%s\n' "$OFF" "$ON" "$ENABLED"
+      printf 'BACKUP_DAY=%s\nBACKUP_TIME=%s\n' "$BACKUP_DAY" "$BACKUP_TIME"
+      printf 'WEEKLY_DAY=%s\nWEEKLY_TIME=%s\n' "$WEEKLY_DAY" "$WEEKLY_TIME"
+      printf 'MONTHLY_DAY=%s\nMONTHLY_TIME=%s\n' "$MONTHLY_DAY" "$MONTHLY_TIME"; } > "$CONF.tmp"
     mv "$CONF.tmp" "$CONF"; chmod 644 "$CONF"
 }
 
@@ -103,19 +115,17 @@ apply_cron() {
     if [ "$ENABLED" = 1 ]; then
         o=$(tomin "$OFF")
         echo "$(( o % 60 )) $(( o / 60 )) * * * $SELF --night" >> "$CRON"
-        set_time "run-parts /etc/periodic/daily"   "$(before 60)"
-        set_time "run-parts /etc/periodic/weekly"  "$(before 50)"
-        set_time "run-parts /etc/periodic/monthly" "$(before 40)"
+        set_time "run-parts /etc/periodic/daily" "$(before 60)"     # actualizarile: inainte de oprire
     else
-        set_time "run-parts /etc/periodic/daily"   120
-        set_time "run-parts /etc/periodic/weekly"  180
-        set_time "run-parts /etc/periodic/monthly" 300
+        set_time "run-parts /etc/periodic/daily" 120
     fi
+    set_time "run-parts /etc/periodic/weekly"  "$(tomin "$WEEKLY_TIME")"  "$WEEKLY_DAY"
+    set_time "run-parts /etc/periodic/monthly" "$(tomin "$MONTHLY_TIME")" "*" "$MONTHLY_DAY"
     # backup-ul oprit din fereastra = linia din cron comentata (pastreaza KEEP / DETACH)
     bk=${1:-}
     [ -n "$bk" ] || { backup_auto && bk=1 || bk=0; }
     sed -i "s|^$BKOFF||" "$CRON"
-    set_time "minipc-backup --cron" "$(before 30)" "$BACKUP_DAY"
+    set_time "minipc-backup --cron" "$(tomin "$BACKUP_TIME")" "$BACKUP_DAY"
     [ "$bk" = 1 ] || sed -i "/minipc-backup --cron/s|^|$BKOFF|" "$CRON"
     rc-service crond restart >/dev/null 2>&1 || true
 }
@@ -128,8 +138,9 @@ need_bk() { [ -x "$BK" ] || fail "backup-ul pe stick nu e instalat: ruleaza o da
 case "${1:-}" in
     --status)
         echo "ENABLED=$ENABLED"; echo "OFF=$OFF"; echo "ON=$ON"; echo "BACKUP_DAY=$BACKUP_DAY"
-        echo "T_UPDATES=$(fmt $(before 60))"; echo "T_WEEKLY=$(fmt $(before 50))"
-        echo "T_MONTHLY=$(fmt $(before 40))"; echo "T_BACKUP=$(fmt $(before 30))"
+        echo "T_UPDATES=$( [ "$ENABLED" = 1 ] && fmt $(before 60) || echo 02:00)"
+        echo "T_BACKUP=$BACKUP_TIME"; echo "WEEKLY_DAY=$WEEKLY_DAY"; echo "T_WEEKLY=$WEEKLY_TIME"
+        echo "MONTHLY_DAY=$MONTHLY_DAY"; echo "T_MONTHLY=$MONTHLY_TIME"
         backup_auto && echo "BACKUP_AUTO=1" || echo "BACKUP_AUTO=0"
         [ -x "$BK" ] && echo "BACKUP_INSTALLED=1" || echo "BACKUP_INSTALLED=0"
         echo "KEEP=$(keep)"
@@ -138,41 +149,53 @@ case "${1:-}" in
         exit 0 ;;
 
     --set)
-        [ $# -eq 5 ] || fail "utilizare: --set OFF ON ZILE ACTIV"
+        [ $# -eq 4 ] || fail "utilizare: --set OFF ON ACTIV"
         valid_time "$2" || fail "ora de oprire invalida: $2"
         valid_time "$3" || fail "ora de pornire invalida: $3"
-        days=$(valid_days "$4") || fail "zilele backup-ului invalide: $4 (0-6, separate prin virgula)"
-        case "$5" in [01]) ;; *) fail "ACTIV trebuie sa fie 0 sau 1" ;; esac
+        case "$4" in [01]) ;; *) fail "ACTIV trebuie sa fie 0 sau 1" ;; esac
         gap=$(( ($(tomin "$3") - $(tomin "$2") + 1440) % 1440 ))
         [ "$gap" -ge 15 ] || fail "pornirea trebuie sa fie la cel putin 15 minute dupa oprire"
-        [ "$5" = 0 ] || [ -e "$RTC/wakealarm" ] || fail "placa nu are ceas cu pornire programabila"
-        OFF=$2; ON=$3; BACKUP_DAY=$days; ENABLED=$5
+        [ "$4" = 0 ] || [ -e "$RTC/wakealarm" ] || fail "placa nu are ceas cu pornire programabila"
+        OFF=$2; ON=$3; ENABLED=$4
         write_conf
         apply_cron
         if [ "$ENABLED" = 1 ]; then
-            say "program salvat: oprire $OFF, pornire $ON, backup pe stick $(daynames "$BACKUP_DAY") la $(fmt $(before 30))"
+            say "program salvat: oprire $OFF, pornire $ON"
         else
-            say "program oprit: mini PC-ul ramane pornit (backup pe stick $(daynames "$BACKUP_DAY") la $(fmt $(before 30)))"
+            say "program oprit: mini PC-ul ramane pornit"
         fi
         exit 0 ;;
 
     --backup)
-        [ $# -eq 3 ] || fail "utilizare: --backup ZILE ACTIV"
+        [ $# -eq 4 ] || fail "utilizare: --backup ZILE ORA ACTIV"
         days=$(valid_days "$2") || fail "alege cel putin o zi pentru backup"
-        case "$3" in [01]) ;; *) fail "ACTIV trebuie sa fie 0 sau 1" ;; esac
-        if [ "$3" = 1 ]; then
+        valid_time "$3" || fail "ora backup-ului invalida: $3"
+        case "$4" in [01]) ;; *) fail "ACTIV trebuie sa fie 0 sau 1" ;; esac
+        if [ "$4" = 1 ]; then
             need_bk
             grep -q "minipc-backup --cron" "$CRON" 2>/dev/null \
                 || fail "backup-ul automat a fost scos: ruleaza o data  doas sh backup.sh --auto"
         fi
-        BACKUP_DAY=$days
+        BACKUP_DAY=$days; BACKUP_TIME=$3
         write_conf
-        apply_cron "$3"
-        if [ "$3" = 1 ]; then
-            say "backup pe stick: $(daynames "$BACKUP_DAY") la $(fmt $(before 30))"
+        apply_cron "$4"
+        if [ "$4" = 1 ]; then
+            say "backup pe stick: $(daynames "$BACKUP_DAY") la $BACKUP_TIME"
         else
             say "backup-ul automat pe stick e oprit (se face doar cand apesi 'Fa backup acum')"
         fi
+        exit 0 ;;
+
+    --maint)
+        [ $# -eq 5 ] || fail "utilizare: --maint ZI ORA ZI_LUNA ORA"
+        case "$2" in [0-6]) ;; *) fail "ziua intretinerii saptamanale invalida: $2 (0-6)" ;; esac
+        valid_time "$3" || fail "ora intretinerii saptamanale invalida: $3"
+        valid_mday "$4" || fail "ziua lunii invalida: $4 (1-28)"
+        valid_time "$5" || fail "ora intretinerii lunare invalida: $5"
+        WEEKLY_DAY=$2; WEEKLY_TIME=$3; MONTHLY_DAY=$4; MONTHLY_TIME=$5
+        write_conf
+        apply_cron
+        say "intretinere: saptamanala $(dayname "$WEEKLY_DAY") la $WEEKLY_TIME, lunara pe $MONTHLY_DAY la $MONTHLY_TIME"
         exit 0 ;;
 
     --apply)
@@ -374,6 +397,16 @@ def next_runs(days, at_min, count=3):
     return out
 
 
+def next_monthly(mday, at_min):
+    now = datetime.datetime.now()
+    y, m = now.year, now.month
+    for _ in range(3):
+        t = datetime.datetime(y, m, mday, at_min // 60, at_min % 60)
+        if t > now:
+            return t
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+
+
 def when(t):
     today = datetime.date.today()
     name = "azi" if t.date() == today else "mâine" if t.date() == today + datetime.timedelta(days=1) \
@@ -416,14 +449,15 @@ class App:
         nb = ttk.Notebook(wrap)
         nb.pack(fill="both", expand=True)
         self.tab_power(self.page(nb, "Oprire / pornire"))
-        self.tab_backup(self.page(nb, "Setări backup"))
+        self.tab_backup(self.page(nb, "Backup și întreținere"))
         self.tab_stick(self.page(nb, "Stick"))
         nb.bind("<<NotebookTabChanged>>", lambda e: self.say(""))
 
         self.msg = ttk.Label(wrap, text="", wraplength=740)
         self.msg.pack(anchor="w", pady=(6, 0))
 
-        for v in (self.off_h, self.off_m, self.on_h, self.on_m, self.enabled, self.bk_on, *self.dvars.values()):
+        for v in (self.off_h, self.off_m, self.on_h, self.on_m, self.enabled, self.bk_on, *self.dvars.values(),
+                  self.bk_h, self.bk_m, self.wk_h, self.wk_m, self.mo_h, self.mo_m, self.mo_day):
             v.trace_add("write", lambda *a: self.preview())
         self.load()
 
@@ -450,14 +484,19 @@ class App:
         f.grid(row=1, column=0, columnspan=2, sticky="ew")
         return f
 
-    def time_row(self, parent, row, label):
-        ttk.Label(parent, text=label, style="Card.TLabel", width=10).grid(row=row, column=0, sticky="w", pady=2)
+    def time_box(self, parent):
+        f = ttk.Frame(parent, style="Card.TFrame")
         h, m = tk.StringVar(), tk.StringVar()
-        ttk.Spinbox(parent, from_=0, to=23, wrap=True, width=4, format="%02.0f", textvariable=h,
-                    justify="center").grid(row=row, column=1, pady=2)
-        ttk.Label(parent, text=":", style="Card.TLabel").grid(row=row, column=2, padx=3)
-        ttk.Spinbox(parent, from_=0, to=55, increment=5, wrap=True, width=4, format="%02.0f", textvariable=m,
-                    justify="center").grid(row=row, column=3, pady=2)
+        ttk.Spinbox(f, from_=0, to=23, wrap=True, width=4, format="%02.0f", textvariable=h, justify="center").pack(side="left")
+        ttk.Label(f, text=":", style="Card.TLabel").pack(side="left", padx=3)
+        ttk.Spinbox(f, from_=0, to=55, increment=5, wrap=True, width=4, format="%02.0f", textvariable=m,
+                    justify="center").pack(side="left")
+        return f, h, m
+
+    def time_row(self, parent, row, label, col=0):
+        ttk.Label(parent, text=label, style="Card.TLabel").grid(row=row, column=col, sticky="w", pady=2, padx=(0, 8))
+        f, h, m = self.time_box(parent)
+        f.grid(row=row, column=col + 1, sticky="w", pady=2)
         return h, m
 
     # ------------------------------------------------------------------ tab 1
@@ -466,14 +505,15 @@ class App:
         c1 = self.card(left)
         self.enabled = tk.BooleanVar()
         ttk.Checkbutton(c1, text="Oprește și pornește automat", variable=self.enabled,
-                        style="CardH.TCheckbutton").grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 6))
+                        style="CardH.TCheckbutton").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 6))
         self.off_h, self.off_m = self.time_row(c1, 1, "Oprire la")
         self.on_h, self.on_m = self.time_row(c1, 2, "Pornire la")
-        ttk.Label(c1, text="Actualizările, întreținerea și backup-ul\nse fac înainte de oprire, singure.",
-                  style="Muted.TLabel", justify="left").grid(row=3, column=0, columnspan=4, sticky="w", pady=(6, 0))
+        ttk.Label(c1, text="Actualizările se fac cu o oră înainte\nde oprire. Backup-ul și întreținerea\n"
+                           "au orele lor, în tab-ul următor.",
+                  style="Muted.TLabel", justify="left").grid(row=3, column=0, columnspan=2, sticky="w", pady=(6, 0))
 
         c2 = self.card(right)
-        ttk.Label(c2, text="Programul serii", style="H.TLabel").pack(anchor="w")
+        ttk.Label(c2, text="Programul", style="H.TLabel").pack(anchor="w")
         self.plan = ttk.Label(c2, text="", style="Card.TLabel", justify="left", font=("DejaVu Sans Mono", 9))
         self.plan.pack(anchor="w", pady=(4, 0))
         c3 = self.card(right, expand=True)
@@ -484,8 +524,6 @@ class App:
 
         b = self.bar(p)
         ttk.Button(b, text="Salvează", style="Accent.TButton", command=self.save_power).pack(side="left")
-        self.skip_btn = ttk.Button(b, text="Nu opri în seara asta", command=self.toggle_skip)
-        self.skip_btn.pack(side="left", padx=8)
 
     # ------------------------------------------------------------------ tab 2
     def tab_backup(self, p):
@@ -494,30 +532,45 @@ class App:
         self.bk_on = tk.BooleanVar()
         self.bk_check = ttk.Checkbutton(c1, text="Backup automat pe stick", variable=self.bk_on,
                                         style="CardH.TCheckbutton")
-        self.bk_check.grid(row=0, column=0, columnspan=7, sticky="w")
-        ttk.Label(c1, text="Doar în zilele bifate:", style="Card.TLabel").grid(
-            row=1, column=0, columnspan=7, sticky="w", pady=(8, 2))
+        self.bk_check.grid(row=0, column=0, columnspan=2, sticky="w")
+        days = ttk.Frame(c1, style="Card.TFrame")
+        days.grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 2))
         self.dvars = {}
-        for i, d in enumerate(WEEK):
+        for d in WEEK:
             self.dvars[d] = tk.BooleanVar()
-            ttk.Checkbutton(c1, text=SHORT[d], variable=self.dvars[d], style="Card.TCheckbutton").grid(
-                row=2, column=i, sticky="w", padx=(0, 4))
-        self.bk_at = ttk.Label(c1, text="", style="Card.TLabel")
-        self.bk_at.grid(row=3, column=0, columnspan=7, sticky="w", pady=(8, 0))
+            ttk.Checkbutton(days, text=SHORT[d], variable=self.dvars[d], style="Card.TCheckbutton").pack(side="left", padx=(0, 4))
+        self.bk_h, self.bk_m = self.time_row(c1, 2, "Ora")
         self.bk_note = ttk.Label(c1, text="", style="Muted.TLabel", justify="left")
-        self.bk_note.grid(row=4, column=0, columnspan=7, sticky="w", pady=(4, 0))
+        self.bk_note.grid(row=3, column=0, columnspan=2, sticky="w", pady=(4, 0))
 
-        c2 = self.card(right, expand=True)
-        ttk.Label(c2, text="Următoarele backup-uri", style="H.TLabel").pack(anchor="w")
-        self.bk_next = ttk.Label(c2, text="", style="Card.TLabel", justify="left")
+        c2 = self.card(left)
+        ttk.Label(c2, text="Întreținerea sistemului", style="H.TLabel").grid(row=0, column=0, columnspan=4, sticky="w")
+        ttk.Label(c2, text="Săptămânală", style="Card.TLabel").grid(row=1, column=0, sticky="w", pady=(6, 2), padx=(0, 8))
+        self.wk_day = ttk.Combobox(c2, values=[DAYS[d] for d in WEEK], state="readonly", width=9)
+        self.wk_day.grid(row=1, column=1, sticky="w", pady=(6, 2))
+        self.wk_day.bind("<<ComboboxSelected>>", lambda e: self.preview())
+        f, self.wk_h, self.wk_m = self.time_box(c2)
+        f.grid(row=1, column=2, sticky="w", padx=(8, 0), pady=(6, 2))
+        ttk.Label(c2, text="Lunară, ziua", style="Card.TLabel").grid(row=2, column=0, sticky="w", pady=2, padx=(0, 8))
+        self.mo_day = tk.StringVar()
+        ttk.Spinbox(c2, from_=1, to=28, wrap=True, width=4, textvariable=self.mo_day, justify="center").grid(
+            row=2, column=1, sticky="w", pady=2)
+        f, self.mo_h, self.mo_m = self.time_box(c2)
+        f.grid(row=2, column=2, sticky="w", padx=(8, 0), pady=2)
+
+        c3 = self.card(right, expand=True)
+        ttk.Label(c3, text="Urmează", style="H.TLabel").pack(anchor="w")
+        self.bk_next = ttk.Label(c3, text="", style="Card.TLabel", justify="left")
         self.bk_next.pack(anchor="w", pady=(4, 0))
-        ttk.Label(c2, text="Recomandat: 1–2 zile pe săptămână. Între backup-uri stick-ul stă\n"
-                           "deconectat, deci nu se uzează. Ora se schimbă din „Oprire / pornire”.",
-                  style="Muted.TLabel", justify="left").pack(anchor="w", pady=(10, 0))
+        self.bk_warn = ttk.Label(c3, text="", style="Card.TLabel", foreground=WARN, justify="left")
+        self.bk_warn.pack(anchor="w", pady=(6, 0))
+        ttk.Label(c3, text="Recomandat: backup 1–2 zile pe săptămână. Între backup-uri\n"
+                           "stick-ul stă deconectat, deci nu se uzează. Alege ore la care\n"
+                           "mini PC-ul e pornit – cât e oprit nu se face nimic.",
+                  style="Muted.TLabel", justify="left").pack(anchor="w", pady=(8, 0))
 
         b = self.bar(p)
-        self.bk_save = ttk.Button(b, text="Salvează", style="Accent.TButton", command=self.save_backup)
-        self.bk_save.pack(side="left")
+        ttk.Button(b, text="Salvează", style="Accent.TButton", command=self.save_backup).pack(side="left")
 
     # ------------------------------------------------------------------ tab 3
     def tab_stick(self, p):
@@ -580,14 +633,18 @@ class App:
         self.bk_on.set(s.get("BACKUP_AUTO") == "1")
         for d, v in self.dvars.items():
             v.set(d in self.saved_days())
+        for (h, m), key in (((self.bk_h, self.bk_m), "T_BACKUP"), ((self.wk_h, self.wk_m), "T_WEEKLY"),
+                            ((self.mo_h, self.mo_m), "T_MONTHLY")):
+            t = s.get(key, "22:30")
+            h.set(t[:2]); m.set(t[3:])
+        self.wk_day.current(WEEK.index(int(s.get("WEEKLY_DAY", "6"))))
+        self.mo_day.set(s.get("MONTHLY_DAY", "1"))
         installed = s.get("BACKUP_INSTALLED") == "1"
-        for w in (self.bk_check, self.bk_save):
-            w.state(["!disabled"] if installed else ["disabled"])
+        self.bk_check.state(["!disabled"] if installed else ["disabled"])
         self.bk_note.configure(
             text=f"Pe stick se păstrează ultimele {s.get('KEEP', '30')} backup-uri." if installed else
             "Backup-ul pe stick nu e instalat încă. O dată, prin SSH:\ndoas sh backup.sh --auto",
             foreground=MUTED if installed else ERR)
-        self.skip_btn.configure(text="Anulează: oprește diseară" if s.get("SKIP_TONIGHT") == "1" else "Nu opri în seara asta")
         text, color = STICK.get(s.get("STICK", ""), ("necunoscut", MUTED))
         self.stick.configure(text=text, foreground=color)
         self.last_backup()
@@ -611,32 +668,55 @@ class App:
             color = ERR if "EROARE" in bad[-1] else WARN
         self.last.configure(text=text, foreground=color)
 
+    def off_at(self, t, off, on):
+        """True daca la minutul t mini PC-ul e oprit (programul automat activ)"""
+        return self.enabled.get() and (t - off) % 1440 < (on - off) % 1440
+
     def preview(self):
         try:
             off = tomin(self.read_time(self.off_h, self.off_m))
             on = tomin(self.read_time(self.on_h, self.on_m))
+            bk = tomin(self.read_time(self.bk_h, self.bk_m))
+            wk = tomin(self.read_time(self.wk_h, self.wk_m))
+            mo = tomin(self.read_time(self.mo_h, self.mo_m))
+            mday = int(self.mo_day.get())
+            if not 1 <= mday <= 28:
+                raise ValueError
         except (ValueError, tk.TclError):
-            self.plan.configure(text="(ora nu e completă)")
+            self.plan.configure(text="(o oră nu e completă)")
             return
-        bk = self.bk_on.get() and bool(self.days())
-        bk_row = [(fmt(off - 30), f"backup pe stick ({day_list(self.days())})")] if bk else []
+        wday = WEEK[self.wk_day.current()] if self.wk_day.current() >= 0 else 6
+        bk_ok = self.bk_on.get() and bool(self.days())
+        warn = []
+
+        def mark(t, what):
+            if self.off_at(t, off, on):
+                warn.append(f"⚠ {what} la {fmt(t)}: mini PC-ul e oprit atunci")
+                return "  ⚠ oprit"
+            return ""
+
+        rows = [(fmt(off - 60) if self.enabled.get() else "02:00", "actualizări (zilnic)"),
+                (fmt(bk), f"backup pe stick ({day_list(self.days())})" + mark(bk, "Backup-ul"))
+                if bk_ok else ("", "backup automat pe stick: oprit"),
+                (fmt(wk), f"întreținere săptămânală ({DAYS[wday]})" + mark(wk, "Întreținerea săptămânală")),
+                (fmt(mo), f"întreținere lunară (pe {mday})" + mark(mo, "Întreținerea lunară"))]
         if self.enabled.get():
-            rows = [(fmt(off - 60), "actualizări automate"),
-                    (fmt(off - 50), "întreținere săptămânală (sâmbătă)"),
-                    (fmt(off - 40), "întreținere lunară (pe 1)"), *bk_row,
-                    (fmt(off), "OPRIRE"), (fmt(on), "pornire (a doua zi)" if on <= off else "pornire")]
+            rows += [(fmt(off), "OPRIRE"), (fmt(on), "pornire")]
         else:
-            rows = [*bk_row, ("", "mini PC-ul rămâne pornit mereu")]
+            rows += [("", "mini PC-ul rămâne pornit mereu")]
         self.plan.configure(text="\n".join(f"{t:>5}  {x}" for t, x in rows))
 
-        at = off - 30
-        self.bk_at.configure(text=f"Ora: {fmt(at)} (cu 30 de minute înainte de oprire)")
-        runs = next_runs(self.days(), at % 1440) if bk else []
-        self.bk_next.configure(text="\n".join(when(t) for t in runs) if runs else
-                               "niciunul (backup automat oprit)" if not self.bk_on.get() else "bifează cel puțin o zi")
+        runs = next_runs(self.days(), bk) if bk_ok else []
+        nxt = ["Backup pe stick:"] + (["   " + when(t) for t in runs] if runs else
+                                      ["   oprit" if not self.bk_on.get() else "   bifează cel puțin o zi"])
+        nxt += ["Întreținere săptămânală:", "   " + when(next_runs({wday}, wk, 1)[0]),
+                "Întreținere lunară:", "   " + when(next_monthly(mday, mo))]
+        self.bk_next.configure(text="\n".join(nxt))
+        self.bk_warn.configure(text="\n".join(warn))
+
         saved = self.st.get("BACKUP_AUTO") == "1" and self.saved_days()
-        nxt = next_runs(self.saved_days(), tomin(self.st.get("T_BACKUP", "22:30")), 1) if saved else []
-        self.next1.configure(text=when(nxt[0]) if nxt else "oprit", foreground=INK if nxt else WARN)
+        nb = next_runs(self.saved_days(), tomin(self.st.get("T_BACKUP", "22:30")), 1) if saved else []
+        self.next1.configure(text=when(nb[0]) if nb else "oprit", foreground=INK if nb else WARN)
 
     # ------------------------------------------------------------------ actiuni
     def result(self, code, out, ok_text=None):
@@ -653,22 +733,28 @@ class App:
         except (ValueError, tk.TclError):
             self.say("Ora nu e validă (ore 0–23, minute 0–59).", ERR)
             return
-        days = ",".join(str(d) for d in sorted(self.saved_days())) or "1"
-        code, out = helper("--set", off, on, days, "1" if self.enabled.get() else "0")
+        code, out = helper("--set", off, on, "1" if self.enabled.get() else "0")
         self.result(code, out, "Salvat ✓  " + out)
 
     def save_backup(self):
+        try:
+            bk = self.read_time(self.bk_h, self.bk_m)
+            wk = self.read_time(self.wk_h, self.wk_m)
+            mo = self.read_time(self.mo_h, self.mo_m)
+            mday = int(self.mo_day.get())
+        except (ValueError, tk.TclError):
+            self.say("O oră nu e validă (ore 0–23, minute 0–59).", ERR)
+            return
         days = self.days()
         if self.bk_on.get() and not days:
             self.say("Bifează cel puțin o zi pentru backup.", ERR)
             return
-        days = days or self.saved_days() or {1}
-        code, out = helper("--backup", ",".join(str(d) for d in sorted(days)), "1" if self.bk_on.get() else "0")
+        code, out = helper("--maint", str(WEEK[self.wk_day.current()]), wk, str(mday), mo)
+        if code == 0 and self.st.get("BACKUP_INSTALLED") == "1":
+            days = days or self.saved_days() or {1}
+            code, out2 = helper("--backup", ",".join(str(d) for d in sorted(days)), bk, "1" if self.bk_on.get() else "0")
+            out = out2 if code else out2 + "; " + out
         self.result(code, out, "Salvat ✓  " + out)
-
-    def toggle_skip(self):
-        code, out = helper("--unskip" if self.st.get("SKIP_TONIGHT") == "1" else "--skip")
-        self.result(code, out)
 
     def show(self, text):
         text = "\n".join(ln.strip().removeprefix("==> ") for ln in text.splitlines())
@@ -770,17 +856,17 @@ show() {
     echo "  Ora acum:           $(date '+%F %H:%M')"
     if [ "$ENABLED" = 1 ]; then
         echo "  Program:            ACTIV - oprire $OFF, pornire $ON$([ "$SKIP_TONIGHT" = 1 ] && echo " (diseara NU se opreste)")"
-        echo "  Inainte de oprire:  $T_UPDATES actualizari, $T_WEEKLY / $T_MONTHLY intretinere, $T_BACKUP backup pe stick"
+        echo "  Actualizari:        $T_UPDATES (cu o ora inainte de oprire)"
     else
         echo "  Program:            inactiv (mini PC-ul ramane pornit)"
     fi
-    days=; for d in $(echo "$BACKUP_DAY" | tr ',' ' '); do
-        days="${days:+$days, }$(echo duminica luni marti miercuri joi vineri sambata | cut -d' ' -f$((d + 1)))"
-    done
+    dn() { echo duminica luni marti miercuri joi vineri sambata | cut -d' ' -f$(($1 + 1)); }
+    days=; for d in $(echo "$BACKUP_DAY" | tr ',' ' '); do days="${days:+$days, }$(dn "$d")"; done
+    echo "  Intretinere:        saptamanala $(dn "$WEEKLY_DAY") la $T_WEEKLY, lunara pe $MONTHLY_DAY la $T_MONTHLY"
     if [ "$BACKUP_AUTO" = 1 ]; then
         echo "  Backup pe stick:    $days la $T_BACKUP"
     elif [ "$BACKUP_INSTALLED" = 1 ]; then
-        echo "  Backup pe stick:    oprit (se porneste din fereastra, tab-ul Backup)"
+        echo "  Backup pe stick:    oprit (se porneste din fereastra, tab-ul 'Backup si intretinere')"
     else
         echo "  Backup pe stick:    neinstalat (doas sh backup.sh --auto)"
     fi
@@ -812,7 +898,8 @@ case "$MODE" in
         write_boot
         # valorile existente raman, daca nu dai altele
         eval "$("$SELF" --status)"
-        "$SELF" --set "${ENV_OFF:-$OFF}" "${ENV_ON:-$ON}" "${ENV_DAY:-$BACKUP_DAY}" 1 || die "Nu am putut salva programul."
+        "$SELF" --set "${ENV_OFF:-$OFF}" "${ENV_ON:-$ON}" 1 || die "Nu am putut salva programul."
+        [ -z "$ENV_DAY" ] || "$SELF" --backup "$ENV_DAY" "$T_BACKUP" "$BACKUP_AUTO" || die "Nu am putut salva zilele backup-ului."
         write_gui
         rc-update add crond default >/dev/null
         log "Program activ."
@@ -821,7 +908,7 @@ case "$MODE" in
     --disable)
         write_helper
         eval "$("$SELF" --status)"
-        "$SELF" --set "$OFF" "$ON" "$BACKUP_DAY" 0 >/dev/null
+        "$SELF" --set "$OFF" "$ON" 0 >/dev/null
         [ -e "$RTC/wakealarm" ] && echo 0 > "$RTC/wakealarm" 2>/dev/null || true
         log "Program dezactivat: mini PC-ul ramane pornit."
         show ;;

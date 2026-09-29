@@ -129,7 +129,6 @@ wget -O power.sh https://raw.githubusercontent.com/85ydm98vfb-cyber/MiniPc/claud
 doas sh power.sh --check      # ceasul plăcii + programul curent
 doas sh power.sh --test       # se oprește ACUM și pornește singur peste 5 minute
 doas sh power.sh --enable     # activează programul + pune fereastra „Program mini PC” pe desktop
-doas minipc-power --skip      # în seara asta nu se oprește
 doas sh power.sh --disable    # mini PC-ul rămâne pornit mereu
 ```
 
@@ -137,13 +136,13 @@ doas sh power.sh --disable    # mini PC-ul rămâne pornit mereu
 
 | Tab | Ce faci acolo |
 |-----|---------------|
-| **Oprire / pornire** | ora de oprire și de pornire, „Nu opri în seara asta”, programul serii, ultimele evenimente |
-| **Setări backup** | backup automat pornit / oprit și **zilele** în care se face (ex. luni + joi); următoarele backup-uri |
+| **Oprire / pornire** | oprire / pornire automată (bifă), ora de oprire și de pornire, tot programul, ultimele evenimente |
+| **Backup și întreținere** | backup-ul pe stick: pornit / oprit, **zilele** (ex. luni + joi) și **ora**; întreținerea săptămânală (zi + oră) și lunară (ziua lunii + oră); ce urmează. Avertizează dacă o oră cade cât mini PC-ul e oprit |
 | **Stick** | ultimul backup, starea stick-ului, **Fă backup acum**, **Arată backup-urile**, **Deschide stick-ul** (doar citire, în managerul de fișiere) și **Ascunde stick-ul** |
 
 Totul trece prin `minipc-power`, care verifică valorile (e singura comandă pe care fereastra o poate rula
 ca root, fără parolă). Backup-ul automat trebuie instalat o dată cu `doas sh backup.sh --auto`.
 
-Treburile de noapte rulează **înainte de oprire, relativ la ea**: actualizări −60 min, întreținere −50 / −40 min,
-**backup pe stick −30 min** (în zilele alese). Implicit: oprire 23:00, pornire 06:30, backup luni 22:30.
+Actualizările rulează cu o oră înainte de oprire. **Backup-ul pe stick și întreținerea au orele lor**, independente
+de oprire (se aleg în fereastră). Implicit: oprire 23:00, pornire 06:30, backup luni 22:30.
 Dacă ceasul plăcii nu acceptă programarea, mini PC-ul **nu** se oprește. Log: `/var/log/minipc-power.log`.
