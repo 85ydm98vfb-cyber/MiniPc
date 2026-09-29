@@ -101,7 +101,7 @@ serviciul e repornit automat. Restarturile, cu ultimele linii din log, sunt în 
 ```sh
 wget -O backup.sh https://raw.githubusercontent.com/85ydm98vfb-cyber/MiniPc/claude/mini-pc-ssh-config-jx93hs/backup.sh
 doas sh backup.sh           # backup acum (prima dată pregătește stick-ul)
-doas sh backup.sh --auto    # + automat săptămânal (implicit luni), cu 30 min înainte de oprire
+doas sh backup.sh --auto    # + automat (implicit luni; zilele se aleg în fereastra „Program mini PC”)
 doas sh backup.sh --list    # backup-urile de pe stick
 doas sh backup.sh --no-auto # oprește backup-ul automat
 ```
@@ -133,10 +133,17 @@ doas minipc-power --skip      # în seara asta nu se oprește
 doas sh power.sh --disable    # mini PC-ul rămâne pornit mereu
 ```
 
-**Fereastra „Program mini PC”** (desktop, prin Remote Desktop): ora de oprire și de pornire, ziua backup-ului
-pe stick, „Nu opri în seara asta” și ultimele evenimente. Salvează prin `minipc-power`, care verifică valorile
-(e singura comandă pe care fereastra o poate rula ca root, fără parolă).
+**Fereastra „Program mini PC”** (desktop, prin Remote Desktop), cu trei taburi:
+
+| Tab | Ce faci acolo |
+|-----|---------------|
+| **Oprire / pornire** | ora de oprire și de pornire, „Nu opri în seara asta”, programul serii, ultimele evenimente |
+| **Setări backup** | backup automat pornit / oprit și **zilele** în care se face (ex. luni + joi); următoarele backup-uri |
+| **Stick** | ultimul backup, starea stick-ului, **Fă backup acum**, **Arată backup-urile**, **Deschide stick-ul** (doar citire, în managerul de fișiere) și **Ascunde stick-ul** |
+
+Totul trece prin `minipc-power`, care verifică valorile (e singura comandă pe care fereastra o poate rula
+ca root, fără parolă). Backup-ul automat trebuie instalat o dată cu `doas sh backup.sh --auto`.
 
 Treburile de noapte rulează **înainte de oprire, relativ la ea**: actualizări −60 min, întreținere −50 / −40 min,
-**backup pe stick −30 min** (în ziua aleasă). Implicit: oprire 23:00, pornire 06:30, backup luni 22:30.
+**backup pe stick −30 min** (în zilele alese). Implicit: oprire 23:00, pornire 06:30, backup luni 22:30.
 Dacă ceasul plăcii nu acceptă programarea, mini PC-ul **nu** se oprește. Log: `/var/log/minipc-power.log`.

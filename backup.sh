@@ -54,6 +54,8 @@ if [ "$MODE" = --auto ] || [ "$MODE" = --no-auto ]; then
     if [ "$MODE" = --auto ]; then
         [ "$(readlink -f "$0")" = "$SELF" ] || install -m 755 "$0" "$SELF"
         echo "30 22 * * 1 KEEP=$KEEP DETACH=$DETACH $SELF --cron" >> /etc/crontabs/root
+        # daca exista programul de oprire (power.sh), backup-ul ia ora si zilele de acolo
+        [ -x /usr/local/sbin/minipc-power ] && { /usr/local/sbin/minipc-power --apply >/dev/null 2>&1 || true; }
         # la pornirea mini PC-ului stick-ul apare din nou -> il deconectam
         printf '#!/bin/sh\n# Generat de backup.sh: deconecteaza stick-ul de backup la pornire\nDETACH=%s %s --detach >/dev/null 2>&1 &\n' \
             "$DETACH" "$SELF" > "$BOOT"
@@ -61,7 +63,8 @@ if [ "$MODE" = --auto ] || [ "$MODE" = --no-auto ]; then
         rc-update add local default >/dev/null 2>&1 || true
         rc-update add crond default >/dev/null
         rc-service crond restart >/dev/null 2>&1 || true
-        log "Backup automat activat: in fiecare luni la 22:30 (log: $LOG)."
+        when="$(awk '/minipc-backup --cron/ { printf "%02d:%02d, zilele (0=duminica) %s", $2, $1, $5 }' /etc/crontabs/root)"
+        log "Backup automat activat: $when (log: $LOG)."
         echo "   Acum fac si un backup, ca sa pregatesc stick-ul."
         MODE=now
     else
