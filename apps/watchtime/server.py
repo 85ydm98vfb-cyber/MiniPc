@@ -721,52 +721,114 @@ def api_movie(u, mid):
 
 
 # ---------- acelasi univers (Wikidata: univers fictional / francriza) ----------
-WD_URL = "https://query.wikidata.org/sparql"
-WD_QUERY = """SELECT ?item ?m ?t ?series ?seriesLabel ?date WHERE {
-  ?src wdt:%(prop)s "%(id)s" .
-  ?src wdt:P1434|wdt:P8345 ?u .
-  ?item wdt:P1434|wdt:P8345 ?u .
-  OPTIONAL { ?item wdt:P4947 ?m . }
-  OPTIONAL { ?item wdt:P4983 ?t . }
-  FILTER(BOUND(?m) || BOUND(?t))
-  OPTIONAL { ?item wdt:P179 ?series . }
-  OPTIONAL { ?item wdt:P577 ?date . }
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "%(lang)s". }
-} LIMIT 600"""
+# Wikidata prin API-ul obisnuit (www.wikidata.org/w/api.php), nu prin serviciul SPARQL (limitat des la 1 cerere/min)
+WD_API = "https://www.wikidata.org/w/api.php"
+WD_HEADERS = {"User-Agent": "WatchTime/1.0 (self-hosted personal app; python-urllib)"}
+WD_LOCK = threading.Lock()
+WD_BLOCK = [0.0]            # dupa un 429, asteptam cat cere serverul
+
+
+def wd_get(params):
+    if time.time() < WD_BLOCK[0]:
+        raise RuntimeError("wikidata: pauza dupa limitare")
+    params = dict(params, format="json", formatversion="2")
+    req = urllib.request.Request(WD_API + "?" + urllib.parse.urlencode(params), headers=WD_HEADERS)
+    with WD_LOCK:
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                data = json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                ra = e.headers.get("Retry-After") or ""
+                WD_BLOCK[0] = time.time() + (int(ra) if ra.isdigit() else 300)
+            raise
+        finally:
+            time.sleep(0.15)
+    if "error" in data:
+        raise RuntimeError(f"wikidata: {data['error'].get('code')}")
+    return data
+
+
+def wd_search(query, limit=150):
+    out, off = [], 0
+    while len(out) < limit:
+        d = wd_get({"action": "query", "list": "search", "srsearch": query, "srnamespace": 0,
+                    "srlimit": 50, "sroffset": off, "srprop": ""})
+        hits = [h["title"] for h in d.get("query", {}).get("search", [])]
+        out += hits
+        if len(hits) < 50 or "continue" not in d:
+            break
+        off += 50
+    return out[:limit]
+
+
+def wd_entities(ids, props="claims", languages=None):
+    ents = {}
+    ids = list(dict.fromkeys(ids))
+    for k in range(0, len(ids), 50):
+        p = {"action": "wbgetentities", "ids": "|".join(ids[k:k + 50]), "props": props}
+        if languages:
+            p["languages"] = languages
+        ents.update(wd_get(p).get("entities", {}))
+    return ents
+
+
+def wd_vals(ent, prop):
+    out = []
+    for c in (ent.get("claims") or {}).get(prop, []):
+        v = (c.get("mainsnak") or {}).get("datavalue", {}).get("value")
+        if isinstance(v, dict):
+            v = v.get("id") or v.get("time")
+        if v:
+            out.append(v)
+    return out
 
 
 def wikidata_universe(kind, tid, lang):
     """Titlurile (film/serial, id TMDB) din acelasi univers, cu seria din care fac parte. Cache 7 zile."""
-    key = f"wd|{kind}|{tid}|{lang}"
+    key = f"wd2|{kind}|{tid}|{lang}"
     row = q1("SELECT body, fetched FROM cache WHERE key=?", (key,))
     if row and time.time() - row["fetched"] < 7 * 86400:
         return json.loads(row["body"])
-    query = WD_QUERY % {"prop": "P4947" if kind == "movie" else "P4983", "id": int(tid),
-                        "lang": "ro,en" if lang == "ro" else "en"}
-    req = urllib.request.Request(WD_URL + "?" + urllib.parse.urlencode({"query": query, "format": "json"}),
-                                 headers={"User-Agent": "WatchTime/1.0 (self-hosted personal app)",
-                                          "Accept": "application/sparql-results+json"})
     try:
-        with urllib.request.urlopen(req, timeout=25) as r:
-            data = json.loads(r.read().decode("utf-8"))
+        src = wd_search(f"haswbstatement:{'P4947' if kind == 'movie' else 'P4983'}={int(tid)}", limit=1)
+        out = []
+        if src:
+            ent = wd_entities(src).get(src[0], {})
+            # universul fictional / franciza; daca lipsesc: seria, apoi opera pe care se bazeaza
+            for props in (("P1434", "P8345"), ("P179",), ("P144",)):
+                pairs = [(p, v) for p in props for v in wd_vals(ent, p) if isinstance(v, str) and v.startswith("Q")]
+                if pairs:
+                    break
+            if pairs:
+                ors = "|".join(f"{p}={v}" for p, v in pairs)
+                qids = wd_search(f"haswbstatement:{ors} haswbstatement:P4947") + \
+                    wd_search(f"haswbstatement:{ors} haswbstatement:P4983")
+                ents = wd_entities(qids)
+                series_ids = [v for e in ents.values() for v in wd_vals(e, "P179")]
+                labels = {}
+                if series_ids:
+                    langs = "ro|en" if lang == "ro" else "en"
+                    for q_, e in wd_entities(series_ids, props="labels", languages=langs).items():
+                        lb = e.get("labels") or {}
+                        labels[q_] = ((lb.get("ro") if lang == "ro" else None) or lb.get("en") or {}).get("value")
+                seen = set()
+                for e in ents.values():
+                    ser = next((labels.get(v) for v in wd_vals(e, "P179") if labels.get(v)), None)
+                    dates = sorted(d_[1:11] for d_ in wd_vals(e, "P577") if isinstance(d_, str))
+                    for p, ty in (("P4947", "movie"), ("P4983", "tv")):
+                        for v in wd_vals(e, p):
+                            if str(v).isdigit() and (ty, int(v)) not in seen:
+                                seen.add((ty, int(v)))
+                                out.append({"type": ty, "id": int(v), "series": ser, "date": dates[0] if dates else None})
     except Exception as e:
         print(f"{now()} Wikidata nu a raspuns pentru {kind} {tid}: {e}", flush=True)
         return json.loads(row["body"]) if row else None
-    items = {}
-    for b in data.get("results", {}).get("bindings", []):
-        v = lambda k: (b.get(k) or {}).get("value")
-        for k2, ty in (("m", "movie"), ("t", "tv")):
-            if v(k2) and v(k2).isdigit():
-                it = items.setdefault((ty, int(v(k2))), {"type": ty, "id": int(v(k2)), "series": None, "date": None})
-                lab = v("seriesLabel")
-                if lab and not re.fullmatch(r"Q\d+", lab) and not it["series"]:
-                    it["series"] = lab
-                if v("date") and (not it["date"] or v("date") < it["date"]):
-                    it["date"] = v("date")[:10]
-    out = list(items.values())
     if not out:
         print(f"{now()} Wikidata: niciun univers gasit pentru {kind} {tid}", flush=True)
-    x("INSERT OR REPLACE INTO cache(key, body, fetched) VALUES(?,?,?)", (key, json.dumps(out), time.time()))
+    # rezultat gol: se reincearca peste o zi; altfel peste 7 zile
+    x("INSERT OR REPLACE INTO cache(key, body, fetched) VALUES(?,?,?)",
+      (key, json.dumps(out), time.time() - (6 * 86400 if not out else 0)))
     return out
 
 
