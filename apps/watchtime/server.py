@@ -749,7 +749,8 @@ def wikidata_universe(kind, tid, lang):
     try:
         with urllib.request.urlopen(req, timeout=25) as r:
             data = json.loads(r.read().decode("utf-8"))
-    except Exception:
+    except Exception as e:
+        print(f"{now()} Wikidata nu a raspuns pentru {kind} {tid}: {e}", flush=True)
         return json.loads(row["body"]) if row else None
     items = {}
     for b in data.get("results", {}).get("bindings", []):
@@ -763,6 +764,8 @@ def wikidata_universe(kind, tid, lang):
                 if v("date") and (not it["date"] or v("date") < it["date"]):
                     it["date"] = v("date")[:10]
     out = list(items.values())
+    if not out:
+        print(f"{now()} Wikidata: niciun univers gasit pentru {kind} {tid}", flush=True)
     x("INSERT OR REPLACE INTO cache(key, body, fetched) VALUES(?,?,?)", (key, json.dumps(out), time.time()))
     return out
 
