@@ -84,11 +84,23 @@ CREATE TABLE IF NOT EXISTS notify_sent(
   user_id INTEGER, kind TEXT, tmdb_id INTEGER, season INTEGER, episode INTEGER, sent_at TEXT,
   PRIMARY KEY(user_id, kind, tmdb_id, season, episode));
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE IF NOT EXISTS notifs(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, created_at TEXT, kind TEXT,
+  tmdb_id INTEGER, season INTEGER, episode INTEGER, title TEXT, body TEXT, url TEXT, poster TEXT, read INTEGER DEFAULT 0);
+CREATE INDEX IF NOT EXISTS notifs_idx ON notifs(user_id, id);
 """)
 _ucols = [r[1] for r in DB.execute("PRAGMA table_info(users)")]
-for _c, _def in (("lang", "TEXT"), ("notify_eps", "INTEGER DEFAULT 1"), ("notify_movies", "INTEGER DEFAULT 1")):
+for _c, _def in (("lang", "TEXT"), ("notify_eps", "INTEGER DEFAULT 1"), ("notify_movies", "INTEGER DEFAULT 1"),
+                 ("notify_compact", "INTEGER DEFAULT 1"), ("notify_format", "INTEGER DEFAULT 2"), ("notify_times", "TEXT")):
     if _c not in _ucols:
         DB.execute(f"ALTER TABLE users ADD COLUMN {_c} {_def}")
+DB.commit()
+_ncols = [r[1] for r in DB.execute("PRAGMA table_info(notifs)")]
+if "pushed" not in _ncols:
+    DB.execute("ALTER TABLE notifs ADD COLUMN pushed INTEGER DEFAULT 0")
+    DB.execute("UPDATE notifs SET pushed=1")        # ce exista deja a fost deja trimis
+if "name" not in _ncols:
+    DB.execute("ALTER TABLE notifs ADD COLUMN name TEXT")
 DB.commit()
 
 TV_STATUSES = ("watching", "plan", "completed", "stopped")
@@ -491,6 +503,8 @@ def after_watch(u, sid):
             new = "completed"
         elif st in ("plan", "completed", "stopped") and rem > 0 and w > 0:
             new = "watching"
+        if st in ("watching", "completed") and not any(cnt.values()):   # toate episoadele debifate -> De vazut
+            new = "plan"
         if new != st:
             x("UPDATE items SET status=? WHERE user_id=? AND type='tv' AND tmdb_id=?", (new, u, sid))
             st = new
@@ -539,10 +553,21 @@ def api_discover(u, qs):
         d = tmdb(paths[section], {"page": str(page)}, ttl=3 * 3600)
         return {"results": [card(r, t, lib) for r in d.get("results", [])],
                 "page": page, "total_pages": min(d.get("total_pages") or 1, 30)}
-    if genre:
+    sort = (qs.get("sort") or ["rec"])[0]      # fara sortare -> pagina cu sectiuni (Recomandate)
+    if genre or sort not in ("", "rec"):
         page = int((qs.get("page") or ["1"])[0])
-        d = tmdb(f"/discover/{t}", {"with_genres": genre, "sort_by": "popularity.desc",
-                                    "vote_count.gte": "50", "include_adult": "false", "page": str(page)})
+        date = "primary_release_date" if t == "movie" else "first_air_date"
+        # sortare -> (sort_by TMDB, minim de voturi ca sa nu apara titluri necunoscute)
+        opts = {"pop": ("popularity.desc", 50), "rating": ("vote_average.desc", 300),
+                "new": (f"{date}.desc", 20), "old": (f"{date}.asc", 100),
+                "title": ("title.asc" if t == "movie" else "name.asc", 200), "votes": ("vote_count.desc", 0)}
+        sort_by, min_votes = opts.get(sort, opts["pop"])
+        params = {"sort_by": sort_by, "vote_count.gte": str(min_votes), "include_adult": "false", "page": str(page)}
+        if genre:
+            params["with_genres"] = genre
+        if sort == "new":
+            params[f"{date}.lte"] = today()          # doar titluri deja aparute
+        d = tmdb(f"/discover/{t}", params)
         return {"results": [card(r, t, lib) for r in d.get("results", [])],
                 "page": page, "total_pages": min(d.get("total_pages") or 1, 50)}
     secs = [("trending", f"/trending/{t}/week"), ("popular", f"/{t}/popular"), ("top_rated", f"/{t}/top_rated"),
@@ -602,7 +627,7 @@ def api_tv_imdb(sid):
     if rows is None:
         return {"seasons": [], "state": "pending"}
     seas = {}
-    for sn, en, r, v in rows:
+    for sn, en, r, v, _ in rows:
         if sn > 0:
             seas.setdefault(sn, []).append({"e": en, "r": r, "v": v})
     out = []
@@ -658,13 +683,13 @@ def api_season(u, sid, n):
         out.append(dict(ep_out(e), count=c, done=c >= th, aired=aired(e.get("air_date"))))
     by_se = {}
     tid = tv_imdb_id(sid) if IMDB.conn else None
-    for sn, en, r, v in (IMDB.episodes(tid) or []) if tid else []:
-        by_se[(sn, en)] = (r, v)
+    for sn, en, r, v, eid in (IMDB.episodes(tid) or []) if tid else []:
+        by_se[(sn, en)] = (r, v, eid)
     if by_se:
         for ep in out:
             hit = by_se.get((n, ep["episode"]))
             if hit:
-                ep["imdb"] = {"id": None, "rating": hit[0], "votes": hit[1]}
+                ep["imdb"] = {"id": hit[2], "rating": hit[0], "votes": hit[1]}
     elif IMDB.conn:  # nota IMDb pe episod (ID-ul IMDb al episodului vine de la TMDB, nota din setul IMDb local)
         def rate(ep):
             if not ep["aired"]:
@@ -691,7 +716,109 @@ def api_movie(u, mid):
             "year": year_of(d.get("release_date")), "overview": d.get("overview") or "", "runtime": d.get("runtime"),
             "genres": [g["name"] for g in d.get("genres", [])], "release_date": d.get("release_date"),
             "item": it and {"status": it["status"], "rating": it["rating"]}, "plays": p["c"], "last_watched": p["last"],
-            "trailer": trailer("movie", mid), "imdb": imdb_info(d.get("imdb_id"))}
+            "trailer": trailer("movie", mid), "imdb": imdb_info(d.get("imdb_id")),
+            "collection": movie_collection(u, d, mid)}
+
+
+# ---------- acelasi univers (Wikidata: univers fictional / francriza) ----------
+WD_URL = "https://query.wikidata.org/sparql"
+WD_QUERY = """SELECT ?item ?m ?t ?series ?seriesLabel ?date WHERE {
+  ?src wdt:%(prop)s "%(id)s" .
+  ?src wdt:P1434|wdt:P8345 ?u .
+  ?item wdt:P1434|wdt:P8345 ?u .
+  OPTIONAL { ?item wdt:P4947 ?m . }
+  OPTIONAL { ?item wdt:P4983 ?t . }
+  FILTER(BOUND(?m) || BOUND(?t))
+  OPTIONAL { ?item wdt:P179 ?series . }
+  OPTIONAL { ?item wdt:P577 ?date . }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "%(lang)s". }
+} LIMIT 600"""
+
+
+def wikidata_universe(kind, tid, lang):
+    """Titlurile (film/serial, id TMDB) din acelasi univers, cu seria din care fac parte. Cache 7 zile."""
+    key = f"wd|{kind}|{tid}|{lang}"
+    row = q1("SELECT body, fetched FROM cache WHERE key=?", (key,))
+    if row and time.time() - row["fetched"] < 7 * 86400:
+        return json.loads(row["body"])
+    query = WD_QUERY % {"prop": "P4947" if kind == "movie" else "P4983", "id": int(tid),
+                        "lang": "ro,en" if lang == "ro" else "en"}
+    req = urllib.request.Request(WD_URL + "?" + urllib.parse.urlencode({"query": query, "format": "json"}),
+                                 headers={"User-Agent": "WatchTime/1.0 (self-hosted personal app)",
+                                          "Accept": "application/sparql-results+json"})
+    try:
+        with urllib.request.urlopen(req, timeout=25) as r:
+            data = json.loads(r.read().decode("utf-8"))
+    except Exception:
+        return json.loads(row["body"]) if row else None
+    items = {}
+    for b in data.get("results", {}).get("bindings", []):
+        v = lambda k: (b.get(k) or {}).get("value")
+        for k2, ty in (("m", "movie"), ("t", "tv")):
+            if v(k2) and v(k2).isdigit():
+                it = items.setdefault((ty, int(v(k2))), {"type": ty, "id": int(v(k2)), "series": None, "date": None})
+                lab = v("seriesLabel")
+                if lab and not re.fullmatch(r"Q\d+", lab) and not it["series"]:
+                    it["series"] = lab
+                if v("date") and (not it["date"] or v("date") < it["date"]):
+                    it["date"] = v("date")[:10]
+    out = list(items.values())
+    x("INSERT OR REPLACE INTO cache(key, body, fetched) VALUES(?,?,?)", (key, json.dumps(out), time.time()))
+    return out
+
+
+def api_universe(u, kind, tid, lang):
+    found = wikidata_universe(kind, tid, lang)
+    if found is None:
+        return {"groups": [], "state": "offline"}
+    skip = {(kind, tid)}
+    if kind == "movie":     # filmele din propria colectie apar deja in sectiunea Seria
+        c = (tmdb(f"/movie/{tid}").get("belongs_to_collection") or {}).get("id")
+        if c:
+            try:
+                skip |= {("movie", p["id"]) for p in tmdb(f"/collection/{c}", ttl=7 * 86400).get("parts") or []}
+            except ApiError:
+                pass
+    cand = [f for f in found if (f["type"], f["id"]) not in skip][:80]
+    lib = lib_map(u)
+
+    def load(f):
+        try:
+            d = tmdb(f"/{f['type']}/{f['id']}", ttl=7 * 86400)
+        except ApiError:
+            return None
+        c = card(dict(d, id=f["id"]), f["type"], lib)
+        c["date"] = d.get("release_date") or d.get("first_air_date") or f["date"] or ""
+        c["group"] = f["series"] or ("__movies" if f["type"] == "movie" else "__tv")
+        return c
+    with ThreadPoolExecutor(6) as ex:
+        cards = [c for c in ex.map(load, cand) if c]
+    groups = {}
+    for c in cards:
+        groups.setdefault(c["group"], []).append(c)
+    out = []
+    for name, lst in groups.items():
+        lst.sort(key=lambda c: c["date"] or "9999")
+        out.append({"name": name, "items": lst})
+    out.sort(key=lambda g: (g["name"] in ("__movies", "__tv"), g["items"][0]["date"] or "9999"))
+    return {"groups": out, "state": "ok"}
+
+
+def movie_collection(u, d, mid):
+    """Celelalte filme din aceeasi serie (colectie TMDB), in ordinea lansarii."""
+    c = d.get("belongs_to_collection")
+    if not c or not c.get("id"):
+        return None
+    try:
+        col = tmdb(f"/collection/{c['id']}", ttl=7 * 86400)
+    except ApiError:
+        return None
+    lib = lib_map(u)
+    parts = sorted(col.get("parts") or [], key=lambda p: p.get("release_date") or "9999")
+    if len(parts) < 2:
+        return None
+    return {"id": c["id"], "name": col.get("name") or c.get("name"),
+            "parts": [dict(card(p, "movie", lib), current=p["id"] == mid) for p in parts]}
 
 
 def api_library(u, qs):
@@ -828,6 +955,8 @@ NOTIFY_TXT = {
 def send_to_user(uid, data):
     if not VAPID:
         return 0
+    pref = q1("SELECT notify_format FROM users WHERE id=?", (uid,))
+    data = dict(data, fmt=pref["notify_format"] if pref and pref["notify_format"] is not None else 2)
     n = 0
     for sub in q("SELECT * FROM push_subs WHERE user_id=?", (uid,)):
         res = push.send(VAPID, sub, data, CFG.get("push_contact") or "mailto:watchtime@example.com")
@@ -863,7 +992,7 @@ def check_new(uid, dry=False):
                 for ep in tmdb(f"/tv/{sid}/season/{sn}", ttl=3600, sync=True).get("episodes", []):
                     k = ("ep", sid, sn, ep["episode_number"])
                     if ep.get("air_date") in window and k not in sent and not cnt.get((sn, ep["episode_number"])):
-                        eps.append({"id": sid, "title": it["title"], "season": sn, "episode": ep["episode_number"],
+                        eps.append({"id": sid, "title": it["title"], "poster": it["poster"], "season": sn, "episode": ep["episode_number"],
                                     "name": ep.get("name") or ""})
             except ApiError:
                 continue
@@ -874,83 +1003,143 @@ def check_new(uid, dry=False):
             except ApiError:
                 continue
             if rd in window and ("movie", it["tmdb_id"], 0, 0) not in sent:
-                movies.append({"id": it["tmdb_id"], "title": it["title"]})
+                movies.append({"id": it["tmdb_id"], "title": it["title"], "poster": it["poster"]})
     return {"eps": eps, "movies": movies}
 
 
-def notify_user(uid):
-    user = q1("SELECT lang FROM users WHERE id=?", (uid,))
-    L = NOTIFY_TXT["en" if (user and user["lang"] == "en") else "ro"]
+def user_lang(uid):
+    r = q1("SELECT lang FROM users WHERE id=?", (uid,))
+    return NOTIFY_TXT["en" if (r and r["lang"] == "en") else "ro"]
+
+
+def collect_user(uid):
+    """Verificarea din fiecare ora: noutatile ajung in istoric (clopotel), marcate ca netrimise pe telefon."""
+    L = user_lang(uid)
     found = check_new(uid)
-    sent = 0
     eps, movies = found["eps"], found["movies"]
+    ts = now()
+    hist = [(uid, ts, "ep", e["id"], e["season"], e["episode"], e["title"],
+             L["new_ep"].format(code=f"S{e['season']} E{e['episode']}", name=e["name"]).rstrip(": "),
+             f"/#/ep/{e['id']}-{e['season']}-{e['episode']}", e.get("poster"), e["title"]) for e in eps] + \
+           [(uid, ts, "movie", m["id"], 0, 0, L["movie_out"].format(title=m["title"]), L["movie_body"],
+             f"/#/movie/{m['id']}", m.get("poster"), m["title"]) for m in movies]
+    if hist:
+        xmany("""INSERT INTO notifs(user_id,created_at,kind,tmdb_id,season,episode,title,body,url,poster,name,pushed)
+                 VALUES(?,?,?,?,?,?,?,?,?,?,?,0)""", hist)
+        x("DELETE FROM notifs WHERE user_id=? AND id NOT IN (SELECT id FROM notifs WHERE user_id=? ORDER BY id DESC LIMIT 300)", (uid, uid))
+        xmany("INSERT OR IGNORE INTO notify_sent VALUES(?,?,?,?,?,?)",
+              [(uid, "ep", e["id"], e["season"], e["episode"], ts) for e in eps] +
+              [(uid, "movie", m["id"], 0, 0, ts) for m in movies])
+    return {"episodes": len(eps), "movies": len(movies)}
+
+
+def push_pending(uid):
+    """Trimite pe telefon noutatile din istoric netrimise inca (grupate), apoi le marcheaza trimise."""
+    rows = q("SELECT * FROM notifs WHERE user_id=? AND pushed=0 ORDER BY id", (uid,))
+    if not rows:
+        return 0
+    L = user_lang(uid)
+    eps = [r for r in rows if r["kind"] == "ep"]
+    movies = [r for r in rows if r["kind"] == "movie"]
+    sent = 0
     if eps:
         shows = {}
         for e in eps:
-            shows.setdefault(e["id"], []).append(e)
+            shows.setdefault(e["tmdb_id"], []).append(e)
         if len(shows) == 1:
             sid, lst = next(iter(shows.items()))
+            lst.sort(key=lambda e: (e["season"], e["episode"]))
             e = lst[-1]
-            code = f"S{e['season']} E{e['episode']}" if len(lst) == 1 else f"S{e['season']} E{lst[0]['episode']}–E{e['episode']}"
-            body = L["new_ep"].format(code=code, name=e["name"]).rstrip(": ") if len(lst) == 1 else L["new_range"].format(code=code)
-            data = {"title": e["title"], "body": body, "url": f"/#/tv/{sid}"}
+            if len(lst) == 1:
+                data = {"title": e["name"] or e["title"], "body": e["body"], "url": e["url"]}
+            else:
+                code = f"S{e['season']} E{lst[0]['episode']}–E{e['episode']}" if lst[0]["season"] == e["season"] \
+                    else f"S{lst[0]['season']}E{lst[0]['episode']} – S{e['season']}E{e['episode']}"
+                data = {"title": e["name"] or e["title"], "body": L["new_range"].format(code=code), "url": f"/#/tv/{sid}"}
         else:
-            parts = [f"{lst[0]['title']} S{lst[-1]['season']}E{lst[-1]['episode']}" for lst in shows.values()]
+            parts = [f"{lst[0]['name'] or lst[0]['title']} S{lst[-1]['season']}E{lst[-1]['episode']}" for lst in shows.values()]
             body = ", ".join(parts[:3]) + (f" {L['more'].format(n=len(parts) - 3)}" if len(parts) > 3 else "")
-            data = {"title": L["new_eps"], "body": body, "url": "/#/shows"}
-        data["tag"] = "wt-eps-" + today()
+            data = {"title": L["new_eps"], "body": body, "url": "/#/notifs"}
+        data["tag"] = "wt-eps-" + now()[:13]
         sent += send_to_user(uid, data)
     if movies:
         if len(movies) == 1:
             m = movies[0]
-            data = {"title": L["movie_out"].format(title=m["title"]), "body": L["movie_body"], "url": f"/#/movie/{m['id']}"}
+            data = {"title": m["title"], "body": m["body"], "url": m["url"]}
         else:
-            data = {"title": L["movies_out"], "body": ", ".join(m["title"] for m in movies[:4]), "url": "/#/movies"}
-        data["tag"] = "wt-movies-" + today()
+            data = {"title": L["movies_out"], "body": ", ".join((m["name"] or m["title"]) for m in movies[:4]), "url": "/#/notifs"}
+        data["tag"] = "wt-movies-" + now()[:13]
         sent += send_to_user(uid, data)
-    rows = [(uid, "ep", e["id"], e["season"], e["episode"], now()) for e in eps] + \
-           [(uid, "movie", m["id"], 0, 0, now()) for m in movies]
-    if rows and sent:
-        xmany("INSERT OR IGNORE INTO notify_sent VALUES(?,?,?,?,?,?)", rows)
-    return {"episodes": len(eps), "movies": len(movies), "sent": sent}
+    x("UPDATE notifs SET pushed=1 WHERE user_id=? AND id<=?", (uid, rows[-1]["id"]))
+    return sent
+
+
+def push_times(row):
+    """Orele pentru notificarile pe telefon; lista goala = imediat (la verificarea din fiecare ora)."""
+    try:
+        t = json.loads(row["notify_times"]) if row["notify_times"] else []
+    except ValueError:
+        t = []
+    return t or []
+
+
+def clean_times(lst, limit=12):
+    out = []
+    for hm in lst or []:
+        hm = str(hm).strip()
+        if not hm:
+            continue
+        m = re.fullmatch(r"(\d{1,2}):(\d{2})", hm)
+        if not m or int(m[1]) > 23 or int(m[2]) > 59:
+            raise ApiError(400, "bad_request")
+        out.append(f"{int(m[1]):02d}:{m[2]}")
+    return sorted(set(out))[:limit]
+
+
+def hourly_all():
+    """Verificarea din fiecare ora pentru toti: actualizeaza clopotelul; cine n-are ore setate primeste push imediat."""
+    with NOTIFY_LOCK:
+        for u in q("SELECT id, notify_times FROM users WHERE is_admin=0"):
+            try:
+                res = collect_user(u["id"])
+                if res["episodes"] or res["movies"]:
+                    print(f"{now()} noutati user {u['id']}: {res}", flush=True)
+                if not push_times(u):
+                    push_pending(u["id"])
+            except Exception as e:
+                print(f"{now()} eroare verificare user {u['id']}: {e}", flush=True)
 
 
 def run_notify_all():
-    if not VAPID or not NOTIFY_LOCK.acquire(blocking=False):
-        return
-    try:
-        for r in q("SELECT DISTINCT user_id FROM push_subs"):
-            try:
-                res = notify_user(r["user_id"])
-                if res["episodes"] or res["movies"]:
-                    print(f"{now()} notificari user {r['user_id']}: {res}", flush=True)
-            except Exception as e:
-                print(f"{now()} eroare notificari user {r['user_id']}: {e}", flush=True)
-    finally:
-        NOTIFY_LOCK.release()
+    threading.Thread(target=hourly_all, daemon=True).start()
 
 
 def notify_scheduler():
-    """Verifica la orele din setari (implicit 11:30 si 18:30). Daca serverul a fost oprit la ora respectiva,
-    recupereaza verificarea in urmatoarele 3 ore."""
+    """La fiecare ora fixa: verificare + clopotel. La orele alese de fiecare utilizator: notificarile pe telefon.
+    Daca serverul a fost oprit, verificarea orei se face la pornire, iar o ora de push ratata se recupereaza in 3 ore."""
     while True:
         try:
             n = local_now()
-            due = None
-            for hm in CFG.get("notify_times") or []:
-                try:
+            hk = n.strftime("%Y-%m-%d %H")
+            last = q1("SELECT value FROM meta WHERE key='hourly_last'")
+            if not last or last["value"] < hk:
+                x("INSERT OR REPLACE INTO meta VALUES('hourly_last', ?)", (hk,))
+                hourly_all()
+            for u in q("SELECT id, notify_times FROM users WHERE is_admin=0 AND notify_times IS NOT NULL"):
+                due = None
+                for hm in push_times(u):
                     h, m = map(int, hm.split(":"))
-                except ValueError:
-                    continue
-                slot = n.replace(hour=h, minute=m, second=0, microsecond=0)
-                if slot <= n < slot + datetime.timedelta(hours=3):
-                    key = slot.strftime("%Y-%m-%d %H:%M")
-                    if not due or key > due:
-                        due = key
-            last = q1("SELECT value FROM meta WHERE key='notify_last'")
-            if due and (not last or last["value"] < due):
-                x("INSERT OR REPLACE INTO meta VALUES('notify_last', ?)", (due,))
-                run_notify_all()
+                    slot = n.replace(hour=h, minute=m, second=0, microsecond=0)
+                    if slot <= n < slot + datetime.timedelta(hours=3):
+                        key = slot.strftime("%Y-%m-%d %H:%M")
+                        if not due or key > due:
+                            due = key
+                mk = f"push_last|{u['id']}"
+                lastp = q1("SELECT value FROM meta WHERE key=?", (mk,))
+                if due and (not lastp or lastp["value"] < due):
+                    x("INSERT OR REPLACE INTO meta VALUES(?, ?)", (mk, due))
+                    with NOTIFY_LOCK:
+                        push_pending(u["id"])
         except Exception as e:
             print(f"{now()} eroare planificator notificari: {e}", flush=True)
         time.sleep(30)
@@ -970,8 +1159,14 @@ def api_push(ctx, a, b):
     if a == "unsubscribe":
         x("DELETE FROM push_subs WHERE user_id=? AND endpoint=?", (u, b.get("endpoint") or ""))
         return {"ok": True}
+    if a == "times":   # orele pentru push; lista goala = imediat, la verificarea din fiecare ora
+        t = clean_times(b.get("times"))
+        x("UPDATE users SET notify_times=? WHERE id=?", (json.dumps(t) if t else None, u))
+        return {"times": t}
     if a == "prefs":
-        x("UPDATE users SET notify_eps=?, notify_movies=? WHERE id=?", (1 if b.get("eps") else 0, 1 if b.get("movies") else 0, u))
+        fmt = int(b.get("fmt", 2))
+        x("UPDATE users SET notify_eps=?, notify_movies=?, notify_format=? WHERE id=?",
+          (1 if b.get("eps") else 0, 1 if b.get("movies") else 0, fmt if fmt in (0, 1, 2) else 2, u))
         return {"ok": True}
     if a == "test":
         L = NOTIFY_TXT["en" if ctx["user"].get("lang") == "en" else "ro"]
@@ -980,7 +1175,9 @@ def api_push(ctx, a, b):
             raise ApiError(400, "push_none")
         return {"sent": n}
     if a == "check":
-        return notify_user(u)
+        res = collect_user(u)
+        res["sent"] = push_pending(u)
+        return res
     raise ApiError(404, "no_action")
 
 
@@ -1188,12 +1385,20 @@ def get_api(ctx, parts, qs):
         return api_discover(u, qs)
     if a == "tv" and len(parts) == 2:
         return api_tv(u, int(parts[1]))
+    if a in ("tv", "movie") and len(parts) == 3 and parts[2] == "universe":
+        lang = "en" if (ctx["user"].get("lang") == "en") else "ro"
+        return coalesce(("univ", u, a, parts[1]), lambda: api_universe(u, a, int(parts[1]), lang))
     if a == "tv" and len(parts) == 3 and parts[2] == "imdb":
         return api_tv_imdb(int(parts[1]))
     if a == "tv" and len(parts) == 4 and parts[2] == "season":
         return api_season(u, int(parts[1]), int(parts[3]))
     if a == "movie" and len(parts) == 2:
         return api_movie(u, int(parts[1]))
+    if a == "libmap":   # statusul tuturor titlurilor din liste (pentru bifele colorate)
+        m = {"tv": {}, "movie": {}}
+        for r in q("SELECT type, tmdb_id, status FROM items WHERE user_id=?", (u,)):
+            m[r["type"]][r["tmdb_id"]] = r["status"]
+        return m
     if a == "library":
         return coalesce(("library", u, str(qs.get("type"))), lambda: api_library(u, qs))
     if a == "shows":
@@ -1206,11 +1411,16 @@ def get_api(ctx, parts, qs):
         return api_export(u)
     if a == "import":
         return IMPORT_JOBS.get(u) or {"state": "none"}
+    if a == "notifs":
+        if len(parts) > 1 and parts[1] == "count":
+            return {"unread": q1("SELECT COUNT(*) c FROM notifs WHERE user_id=? AND read=0", (u,))["c"]}
+        return {"items": q("SELECT * FROM notifs WHERE user_id=? ORDER BY created_at DESC, id DESC LIMIT 200", (u,)),
+                "unread": q1("SELECT COUNT(*) c FROM notifs WHERE user_id=? AND read=0", (u,))["c"]}
     if a == "push":
-        us = q1("SELECT notify_eps, notify_movies FROM users WHERE id=?", (u,))
+        us = q1("SELECT notify_eps, notify_movies, notify_format, notify_times FROM users WHERE id=?", (u,))
         return {"available": bool(VAPID), "key": VAPID.public_b64 if VAPID else None,
                 "devices": q1("SELECT COUNT(*) c FROM push_subs WHERE user_id=?", (u,))["c"],
-                "eps": bool(us["notify_eps"]), "movies": bool(us["notify_movies"]), "times": CFG.get("notify_times") or []}
+                "eps": bool(us["notify_eps"]), "movies": bool(us["notify_movies"]), "fmt": us["notify_format"] if us["notify_format"] is not None else 2, "times": push_times(us)}
     raise ApiError(404, "no_route")
 
 
@@ -1350,8 +1560,6 @@ def admin_post(ctx, a, b):
         tmdb("/configuration", {}, ttl=0)
         return {"ok": True}
     if a == "notify-now":
-        if not VAPID:
-            raise ApiError(400, "push_unavailable")
         threading.Thread(target=run_notify_all, daemon=True).start()
         return {"ok": True}
     if a == "cache-clear":
@@ -1385,6 +1593,15 @@ def post_api(ctx, parts, b):
         return api_import_start(u, b)
     if a.startswith("push/"):
         return api_push(ctx, a[5:], b)
+    if a == "notifs/read":
+        if b.get("id"):
+            x("UPDATE notifs SET read=1 WHERE user_id=? AND id=?", (u, int(b["id"])))
+        else:
+            x("UPDATE notifs SET read=1 WHERE user_id=?", (u,))
+        return {"ok": True}
+    if a == "notifs/clear":
+        x("DELETE FROM notifs WHERE user_id=?", (u,))
+        return {"ok": True}
     t, i = b.get("type", "tv"), int(b.get("id") or 0)
     if t not in ("tv", "movie") or not i:
         raise ApiError(400, "bad_request")

@@ -29,12 +29,12 @@ class Ratings:
         return {"rating": r[0], "votes": r[1]} if r else None
 
     def episodes(self, parent):
-        """(sezon, episod, nota, voturi) pentru episoadele cu nota ale unui serial; None daca lista nu e gata."""
+        """(sezon, episod, nota, voturi, id IMDb) pentru episoadele cu nota ale unui serial; None daca lista nu e gata."""
         if not self.conn:
             return None
         with self.lock:
             try:
-                return self.conn.execute("""SELECT e.season, e.episode, r.rating, r.votes FROM e JOIN r ON r.id=e.id
+                return self.conn.execute("""SELECT e.season, e.episode, r.rating, r.votes, e.id FROM e JOIN r ON r.id=e.id
                                             WHERE e.parent=? ORDER BY e.season, e.episode""", (parent,)).fetchall()
             except sqlite3.Error:
                 return None

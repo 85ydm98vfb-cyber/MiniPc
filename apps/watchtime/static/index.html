@@ -253,7 +253,7 @@ h2 .n{color:var(--muted);font-weight:500;margin-left:6px}
 }
 .rowline h2{margin-bottom:12px}
 .qadd.watch{background:rgba(0,0,0,.65);color:#fff;border:2px solid rgba(255,255,255,.75)}
-.qadd.watch.in{background:var(--ok);border-color:var(--ok);color:#0B1A16}
+.qadd.watch.in{background:var(--done);border-color:var(--done);color:#062611}
 .lists2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 @media (max-width:420px){.lists2{grid-template-columns:1fr}}
 .cathead{display:flex;justify-content:space-between;font-weight:800;font-size:17px;padding-bottom:6px;border-bottom:2px solid var(--line)}
@@ -350,6 +350,65 @@ h2 .n{color:var(--muted);font-weight:500;margin-left:6px}
 .dots button{min-width:28px;height:28px;border-radius:14px;background:var(--panel2);color:var(--muted);font-size:12.5px;font-weight:700}
 .dots button.on{background:var(--accent);color:var(--accent-ink)}
 
+.clrwrap{position:relative;display:block;min-width:0}
+.clrwrap input{width:100%;padding-right:40px!important}
+.clrbtn{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;
+  background:var(--panel2);color:var(--muted);display:none;place-items:center}
+.clrbtn svg{width:14px;height:14px;stroke:currentColor;stroke-width:2.6;fill:none;stroke-linecap:round}
+.clrwrap.has .clrbtn{display:grid}
+.clrbtn:active{background:var(--accent);color:var(--accent-ink)}
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+
+#bell{margin-left:auto;position:relative;display:grid;place-items:center;width:40px;height:40px;border-radius:50%;color:var(--text)}
+#bell svg{width:24px;height:24px;stroke:currentColor;stroke-width:1.9;fill:none;stroke-linecap:round;stroke-linejoin:round}
+#bell:active{background:var(--panel2)}
+#bellcount{position:absolute;top:3px;right:1px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#E5484D;color:#fff;
+  font-style:normal;font-size:11px;font-weight:800;line-height:18px;text-align:center}
+.nlist{display:flex;flex-direction:column;gap:8px}
+.nrow{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center;width:100%;text-align:left;background:var(--panel);border-radius:14px;padding:9px 12px 9px 9px}
+.nrow .thumb{width:48px;aspect-ratio:2/3;border-radius:7px;overflow:hidden;background:var(--panel2)}
+.nrow .thumb img{width:100%;height:100%;object-fit:cover}
+.nrow .info b{font-size:15px}
+.nrow .info span{font-size:14px;color:var(--text);opacity:.85}
+.nrow .info small{margin-top:2px}
+.nrow:not(.unread){opacity:.62}
+.udot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+
+.nbtns{display:flex;gap:8px;margin:4px 0 14px}
+.nbtns .btn{flex:1;padding:10px 8px;font-size:14px}
+.nbtns .btn.danger{background:var(--panel2);padding-left:8px}
+.nbtns .btn:disabled{opacity:.45}
+
+.disctop{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:4px 0 0}
+.disctop .toggle{margin:0}
+#dsort{font:inherit;font-size:14.5px;font-weight:600;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--text);min-width:0;max-width:52%}
+
+.qadd.st-y,.stchk.st-y{background:#F4C152;color:#241A00}
+.qadd.st-g,.stchk.st-g{background:var(--done);color:#062611}
+.qadd.st-t,.stchk.st-t{background:var(--ok);color:#0B1A16}
+.qadd.st-s,.stchk.st-s{background:#6E6E76;color:#fff}
+.stchk{position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;z-index:1;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.stchk svg{width:15px;height:15px;stroke:currentColor;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.pcard .badge{top:auto;bottom:10px}
+.dcard.cur .pimg::after{content:"";position:absolute;inset:0;border:3px solid var(--muted);border-radius:inherit;z-index:1;pointer-events:none}
+.dcard.cur.st-y .pimg::after{border-color:#F4C152}.dcard.cur.st-g .pimg::after{border-color:var(--done)}
+.dcard.cur.st-t .pimg::after{border-color:var(--ok)}.dcard.cur.st-s .pimg::after{border-color:#6E6E76}
+
+.ugh{font-size:16px;font-weight:750;margin:18px 0 10px;color:var(--text)}
+.ugh .n{color:var(--muted);font-weight:500;margin-left:6px}
+
+.ntlabel{font-size:13.5px;font-weight:700;color:var(--muted);margin:0 0 6px}
+.ntimes{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}
+.ntrow{display:flex;align-items:center;gap:4px;background:var(--panel2);border-radius:12px;padding:4px 4px 4px 6px}
+.ntrow input{width:auto!important;border:0!important;background:transparent!important;padding:6px!important}
+.ntdel{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:var(--muted)}
+.ntdel svg{width:14px;height:14px;stroke:currentColor;stroke-width:2.6;fill:none;stroke-linecap:round}
+.ntdef{margin:0;padding:10px 12px;border-radius:12px;background:var(--panel2);font-weight:600;font-size:14.5px;width:100%}
+.ntadd{margin:0 0 14px}
+.ntimes label span{display:block;font-size:13px;font-weight:650;color:var(--muted);margin-bottom:4px}
+.ntimes input{width:100%;font:inherit;font-size:17px;font-weight:700;padding:10px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--text)}
+.ntimes .btn{grid-column:1 / -1;font-size:13.5px}
+
 /* bottom sheet */
 .sheet-bg{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
 .sheet{width:100%;max-width:520px;background:var(--panel);border-radius:20px 20px 0 0;padding:18px 16px calc(16px + env(safe-area-inset-bottom,0px))}
@@ -383,6 +442,7 @@ h2 .n{color:var(--muted);font-weight:500;margin-left:6px}
 <header class="top" id="topbar" hidden><div class="wrap">
   <button id="back" hidden>‹ Înapoi</button>
   <h1 id="topTitle">Urmează</h1>
+  <a id="bell" href="#/notifs" hidden aria-label="Notificări"><svg viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0112 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 004 0"/></svg><i id="bellcount" hidden></i></a>
 </div></header>
 
 <main id="main" class="wrap"></main>
@@ -422,8 +482,8 @@ const I18N = {
     createAccount:'Creează contul', signIn:'Intră', pwMismatch:'Parolele nu se potrivesc', error:'Eroare',
     // actiuni
     rewatchDone:'Rewatch terminat! Ai revăzut tot serialul.', markedWatched:c => `${c} marcat ca văzut`,
-    movedTo:l => `Mutat la ${l}`, delShow:'Ștergi serialul?', delMovie:'Ștergi filmul?',
-    delShowText:'Se șterge și tot istoricul episoadelor văzute.', delMovieText:'Se șterge și istoricul vizionărilor.',
+    movedTo:l => `Mutat la ${l}`, delShow:'Nu mai urmărești serialul?', delMovie:'Nu mai vrei să vezi filmul?', dontWatch:'Nu urmăresc',
+    delShowText:'Serialul iese din listele tale, împreună cu istoricul episoadelor văzute.', delMovieText:'Filmul iese din listele tale, împreună cu istoricul vizionărilor.',
     removed:'Șters din listă', watchedTimes:n => `Văzut ${I18N.ro.times(n)}.`, watchAgain:n => `Văzut din nou (${n}×)`,
     epWatchedTimes:(c, n) => `${c} văzut ${I18N.ro.times(n)}`, removePlay:'Scoate o vizionare',
     seasonUnmarked:n => `Sezonul ${n} demarcat`, seasonMarked:n => `Sezonul ${n} marcat ca văzut`, uptoDone:c => `Marcat tot până la ${c}`,
@@ -496,9 +556,17 @@ const I18N = {
     releaseOn:d => `lansare ${d}`, notReleased:'Nelansat încă', noSoonMovies:'Niciun film așteptat',
     noSoonMoviesText:'Adaugă filme care n-au apărut încă (din Discover → În curând la cinema) și vezi aici câte zile mai sunt.',
     comingOut:d => `Apare ${d}`, noDate:'dată neanunțată',
-    filterPh:'Caută în listă', searchAllMovies:'Caută în toate filmele tale', allCatResults:n => `${n} ${n == 1 ? 'rezultat' : 'rezultate'} din toate filmele tale`, mvWatchedOne:'Văzut', sortBy:'Sortare', noMatch:'Nimic nu se potrivește căutării.',
+    notifsH:'Notificări', notifsEmpty:'Nicio notificare', notifsEmptyText:'Aici apar episoadele și filmele noi anunțate de Watch Time.',
+    notifsReadAll:'Marchează toate ca citite', notifsClear:'Șterge toate', notifsClearQ:'Ștergi toate notificările?',
+    notifsAllRead:'Toate sunt marcate ca citite', notifsCleared:'Notificări șterse',
+    clearText:'Șterge textul', filterPh:'Caută în listă', searchAllMovies:'Caută în toate filmele tale', allCatResults:n => `${n} ${n == 1 ? 'rezultat' : 'rezultate'} din toate filmele tale`, mvWatchedOne:'Văzut', sortBy:'Sortare', noMatch:'Nimic nu se potrivește căutării.',
     sorts:{added:'Adăugate recent', title:'Titlu A–Z', year_new:'An: noi → vechi', year_old:'An: vechi → noi', rating:'Nota mea', watched:'Văzute recent', release:'Data lansării', progress:'Progres'},
     notifH:'Notificări', and:' și ', notifInfo:x => `Verific la ${x} dacă au apărut episoade noi la serialele tale sau filme din lista De văzut și te anunț.`,
+    notifInfo2:'Verific în fiecare oră dacă au apărut episoade noi la serialele tale sau filme din lista De văzut. Noutățile apar imediat în clopoțel.',
+    pushWhen:'Notificări pe telefon', pushHourly:'Imediat ce apar (la verificarea din fiecare oră)', pushAdd:'Adaugă o oră',
+    pushAt:x => `Notificări pe telefon la ${x}`, pushHourlyToast:'Notificări pe telefon imediat ce apar',
+    notifFormat:'Aspectul notificării pe iPhone', notifFmt2:'Serial și text sus, „from Watch Time” jos',
+    notifFmt1:'„from Watch Time” sus, apoi serial și text', notifFmt0:'Clasic (serial, „from Watch Time”, text)',
     notifEps:'Episoade noi la serialele mele', notifMovies:'Filme din lista De văzut lansate',
     notifEnable:'Activează notificările pe acest dispozitiv', notifOn:'Notificările sunt active pe acest dispozitiv',
     notifOnToast:'Notificări activate', notifOff:'Dezactivează', notifTest:'Trimite un test', notifTestSent:'Notificare de test trimisă',
@@ -507,13 +575,16 @@ const I18N = {
     notifHttps:'Notificările merg doar pe adresa https (duckdns), nu pe http://IP:8765.',
     notifUnsupported:'Acest browser nu suportă notificări.', notifServerOff:'Notificările sunt dezactivate pe server. Adminul trebuie să ruleze pe mini PC: doas apk add py3-cryptography, apoi să repornească aplicația.',
     notifOther:n => `Ai notificările active pe ${n} ${n == 1 ? 'dispozitiv' : 'dispozitive'}.`,
-    notifTimes:'Ore de verificare (separate prin virgulă)', tzLabel:'Fus orar (gol = ora mini PC-ului)',
+    notifTimes:'Ore de verificare (separate prin virgulă)', adminNotifInfo:'Serverul verifică noutățile la fiecare oră fixă. Orele pentru notificările pe telefon le alege fiecare utilizator din Profil.', tzLabel:'Fus orar (gol = ora mini PC-ului)',
     serverTime:x => `Ora folosită acum: ${x}`, notifCheckNow:'Verifică acum pentru toți', notifChecking:'Verificarea a pornit',
     imdbVotes:n => `${n} voturi pe IMDb`, imdbChart:'Note IMDb pe sezoane', avgRating:'medie', episodesAxis:'episoade',
     imdbPending:'Graficul apare după ce serverul descarcă lista de episoade IMDb (câteva minute după repornire).',
     searchWeb:'Caută pe net', webTv:'serial', webMovie:'film',
     retry:'Reîncearcă', autoRetry:'Reîncerc automat în câteva secunde.', trailer:'Trailer',
     markUpto:'Marchează tot până aici', notAiredYet:'Nu a apărut încă', noOverview:'Fără descriere.',
+    universe:'Din același univers', uMovies:'Alte filme', uTv:'Seriale',
+    allGenres:'Toate genurile',
+    dsorts:{rec:'Recomandate', pop:'Populare', rating:'Nota cea mai mare', votes:'Cele mai votate', new:'Cele mai noi', old:'Cele mai vechi', title:'Titlu A–Z'},
     seeAll:'Vezi tot', backToDiscover:'‹ Discover', markedMovie:'Film marcat ca văzut',
     myLists:'Listele mele', allItems:'Toate', listsEmpty:'Nimic în această categorie',
     importH:'Importă date', importText:'Din Trakt (arhiva .zip sau fișierele .json din export) sau dintr-o copie de siguranță Watch Time. Poți importa de mai multe ori, nu se dublează nimic.',
@@ -544,8 +615,8 @@ const I18N = {
     loginIntro:'Sign in to your account.', username:'Username', password:'Password', password2:'Repeat password',
     createAccount:'Create account', signIn:'Sign in', pwMismatch:"Passwords don't match", error:'Error',
     rewatchDone:'Rewatch finished! You watched the whole show again.', markedWatched:c => `${c} marked as watched`,
-    movedTo:l => `Moved to ${l}`, delShow:'Delete this show?', delMovie:'Delete this movie?',
-    delShowText:'Your whole episode history for it is deleted too.', delMovieText:'Its watch history is deleted too.',
+    movedTo:l => `Moved to ${l}`, delShow:"Don't watch this show?", delMovie:"Don't watch this movie?", dontWatch:"Don't Watch",
+    delShowText:'The show leaves your lists, together with its episode history.', delMovieText:'The movie leaves your lists, together with its watch history.',
     removed:'Removed from your list', watchedTimes:n => `Watched ${I18N.en.times(n)}.`, watchAgain:n => `Watched again (${n}×)`,
     epWatchedTimes:(c, n) => `${c} watched ${I18N.en.times(n)}`, removePlay:'Remove one watch',
     seasonUnmarked:n => `Season ${n} unmarked`, seasonMarked:n => `Season ${n} marked as watched`, uptoDone:c => `Marked everything up to ${c}`,
@@ -613,9 +684,17 @@ const I18N = {
     releaseOn:d => `release ${d}`, notReleased:'Not released yet', noSoonMovies:'No upcoming movies',
     noSoonMoviesText:"Add movies that aren't out yet (Discover → Coming to cinemas) and see how many days are left.",
     comingOut:d => `Out ${d}`, noDate:'date not announced',
-    filterPh:'Search this list', searchAllMovies:'Search all your movies', allCatResults:n => `${n} ${n == 1 ? 'result' : 'results'} from all your movies`, mvWatchedOne:'Watched', sortBy:'Sort', noMatch:'Nothing matches your search.',
+    notifsH:'Notifications', notifsEmpty:'No notifications', notifsEmptyText:'New episodes and movies announced by Watch Time show up here.',
+    notifsReadAll:'Mark all as read', notifsClear:'Delete all', notifsClearQ:'Delete all notifications?',
+    notifsAllRead:'All marked as read', notifsCleared:'Notifications deleted',
+    clearText:'Clear text', filterPh:'Search this list', searchAllMovies:'Search all your movies', allCatResults:n => `${n} ${n == 1 ? 'result' : 'results'} from all your movies`, mvWatchedOne:'Watched', sortBy:'Sort', noMatch:'Nothing matches your search.',
     sorts:{added:'Recently added', title:'Title A–Z', year_new:'Year: new → old', year_old:'Year: old → new', rating:'My rating', watched:'Recently watched', release:'Release date', progress:'Progress'},
     notifH:'Notifications', and:' and ', notifInfo:x => `I check at ${x} for new episodes of your shows and movies from your watchlist, and let you know.`,
+    notifInfo2:'I check every hour for new episodes of your shows and movies from your watchlist. News shows up in the bell right away.',
+    pushWhen:'Phone notifications', pushHourly:'As soon as they appear (at the hourly check)', pushAdd:'Add a time',
+    pushAt:x => `Phone notifications at ${x}`, pushHourlyToast:'Phone notifications as soon as they appear',
+    notifFormat:'Notification layout on iPhone', notifFmt2:'Show and text on top, “from Watch Time” below',
+    notifFmt1:'“from Watch Time” on top, then show and text', notifFmt0:'Classic (show, “from Watch Time”, text)',
     notifEps:'New episodes of my shows', notifMovies:'Watchlist movies released',
     notifEnable:'Turn on notifications on this device', notifOn:'Notifications are on for this device',
     notifOnToast:'Notifications turned on', notifOff:'Turn off', notifTest:'Send a test', notifTestSent:'Test notification sent',
@@ -624,13 +703,16 @@ const I18N = {
     notifHttps:'Notifications only work on the https address (duckdns), not on http://IP:8765.',
     notifUnsupported:"This browser doesn't support notifications.", notifServerOff:'Notifications are disabled on the server. The admin needs to run on the mini PC: doas apk add py3-cryptography, then restart the app.',
     notifOther:n => `You have notifications on for ${n} ${n == 1 ? 'device' : 'devices'}.`,
-    notifTimes:'Check times (comma separated)', tzLabel:'Time zone (empty = mini PC time)',
+    notifTimes:'Check times (comma separated)', adminNotifInfo:'The server checks for news every hour on the hour. Each user picks their phone notification times in Profile.', tzLabel:'Time zone (empty = mini PC time)',
     serverTime:x => `Time in use now: ${x}`, notifCheckNow:'Check now for everyone', notifChecking:'Check started',
     imdbVotes:n => `${n} votes on IMDb`, imdbChart:'IMDb ratings by season', avgRating:'average', episodesAxis:'episodes',
     imdbPending:'The chart appears once the server has downloaded the IMDb episode list (a few minutes after restart).',
     searchWeb:'Search the web', webTv:'TV series', webMovie:'movie',
     retry:'Try again', autoRetry:'Retrying automatically in a few seconds.', trailer:'Trailer',
     markUpto:'Mark everything up to here', notAiredYet:'Not aired yet', noOverview:'No description.',
+    universe:'From the same universe', uMovies:'Other movies', uTv:'TV shows',
+    allGenres:'All genres',
+    dsorts:{rec:'Recommended', pop:'Popular', rating:'Highest rated', votes:'Most voted', new:'Newest', old:'Oldest', title:'Title A–Z'},
     seeAll:'See all', backToDiscover:'‹ Discover', markedMovie:'Movie marked as watched',
     myLists:'My lists', allItems:'All', listsEmpty:'Nothing in this category',
     importH:'Import data', importText:'From Trakt (the .zip archive or the .json files from the export) or from a Watch Time backup. You can import more than once; nothing gets duplicated.',
@@ -660,9 +742,9 @@ function langSwitch(){
 }
 
 const state = {
-  me:null, imdbCache:{}, chartStart:null, showsTab:'towatch', history:{items:[], more:false}, showsFilter:'watching', moviesFilter:'watchlist', open:{id:null, set:new Set()},
+  me:null, imdbCache:{}, univCache:{}, chartStart:null, showsTab:'towatch', history:{items:[], more:false}, showsFilter:'watching', moviesFilter:'watchlist', open:{id:null, set:new Set()},
   search:{type:'tv', q:'', results:[], page:1, pages:1},
-  disc:{type:'tv', genre:null, section:null, page:1, pages:1, results:[], data:{}},
+  disc:{type:'tv', genre:null, section:null, sort:(() => { try { return localStorage.getItem('wt-dsort') || 'rec'; } catch { return 'rec'; } })(), page:1, pages:1, results:[], data:{}},
 };
 let routeToken = 0;
 const TV_KEYS = ['watching','plan','completed','stopped'], MV_KEYS = ['watchlist','watched'];
@@ -757,9 +839,11 @@ function barCls(i){
   if(done && (i.status === 'completed' || ['Ended', 'Canceled'].includes(i.show_status))) return 'done';
   return done ? 'upd' : '';
 }
-function posterCard({id, type, poster, title, sub, progress, badge, bar = ''}){
+function stCls(st){ return {watchlist:'st-y', plan:'st-y', watched:'st-g', completed:'st-g', watching:'st-t', rewatching:'st-t', stopped:'st-s'}[st] || ''; }
+function stMark(st){ return st ? `<i class="stchk ${stCls(st)}" title="${esc(stLabel(st))}">${CHECK}</i>` : ''; }
+function posterCard({id, type, poster, title, sub, progress, badge, bar = '', st = ''}){
   return `<a class="pcard" href="#/${type}/${id}"><div class="pimg">
-    ${poster ? `<img src="${img(poster)}" loading="lazy" alt="">` : `<span>${esc(title)}</span>`}
+    ${poster ? `<img src="${img(poster)}" loading="lazy" alt="">` : `<span>${esc(title)}</span>`}${stMark(st)}
     ${badge ? `<i class="badge">${badge}</i>` : ''}
     ${progress != null ? `<div class="tape"><div class="${bar}" style="width:${progress}%"></div></div>` : ''}
   </div><b>${esc(title)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</a>`;
@@ -768,9 +852,42 @@ function discCard(r){
   return `<div class="dcard"><a class="pimg" href="#/${r.type}/${r.id}">
       ${r.poster ? `<img src="${img(r.poster)}" loading="lazy" alt="">` : `<span>${esc(r.title)}</span>`}
       ${r.rating ? `<span class="score">★ ${r.rating}</span>` : ''}</a>
-    <button class="qadd ${r.status ? 'in' : ''}" aria-label="${r.status ? stLabel(r.status) : t('add')}" onclick="T.quickAdd('${r.type}',${r.id},this)">${r.status ? CHECK : PLUS}</button>
+    <button class="qadd ${r.status ? 'in ' + stCls(r.status) : ''}" aria-label="${r.status ? stLabel(r.status) : t('add')}" onclick="T.quickAdd('${r.type}',${r.id},this)">${r.status ? CHECK : PLUS}</button>
     <b>${esc(r.title)}</b>${r.year ? `<small>${r.year}</small>` : ''}</div>`;
 }
+
+/* ---------- clopotelul de notificari ---------- */
+async function updateBell(){
+  if(!state.me || state.me.is_admin) return;
+  try {
+    const {unread} = await api('notifs/count');
+    const c = $('#bellcount'); c.hidden = !unread; c.textContent = unread > 99 ? '99+' : unread;
+    $('#bell').setAttribute('aria-label', `${t('notifsH')}${unread ? ` (${unread})` : ''}`);
+  } catch {}
+}
+setInterval(updateBell, 120000);
+document.addEventListener('visibilitychange', () => { if(!document.hidden) updateBell(); });
+window.openNotif = (id, url) => { api('notifs/read', {id}).then(updateBell).catch(() => {}); location.hash = url.replace(/^\/?#?/, '#'); };
+function timeAgo(ts){
+  if(!ts) return '';
+  const d = ts.slice(0, 10), hm = ts.slice(11, 16);
+  return `${fmtDate(d, true)}, ${hm}`;
+}
+
+/* ---------- buton x in campurile de cautare ---------- */
+function addClearButtons(){
+  document.querySelectorAll('input[type=search]:not([data-clr])').forEach(inp => {
+    inp.dataset.clr = '1';
+    const w = document.createElement('span'); w.className = 'clrwrap';
+    inp.parentNode.insertBefore(w, inp); w.appendChild(inp);
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'clrbtn'; b.setAttribute('aria-label', t('clearText'));
+    b.innerHTML = '<svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg>';
+    b.onclick = () => { inp.value = ''; inp.dispatchEvent(new Event('input', {bubbles:true})); inp.focus(); };
+    w.appendChild(b); w.classList.toggle('has', !!inp.value);
+  });
+}
+document.addEventListener('input', e => { const w = e.target.closest?.('.clrwrap'); if(w) w.classList.toggle('has', !!e.target.value); });
+new MutationObserver(addClearButtons).observe(document.getElementById('main'), {childList:true, subtree:true});
 
 /* ---------- incarcare automata la capatul listei ---------- */
 const INF = {load:null, busy:false, token:0};
@@ -961,7 +1078,7 @@ async function boot(){
   }
   state.me = me.user;
   applyLang();
-  if(me.user){ buildNav(); showApp(true); route(); return; }
+  if(me.user){ buildNav(); showApp(true); $('#bell').hidden = !!me.user.is_admin; updateBell(); route(); return; }
   showApp(false);
   authScreen(me.setup_needed ? 'setup' : 'login', me);
 }
@@ -998,9 +1115,9 @@ function authScreen(mode, me){
 async function route(soft){
   if(!state.me) return;
   let [name, arg] = location.hash.replace(/^#\/?/, '').split('/');
-  const allowed = state.me.is_admin ? ADMIN_TABS : [...USER_TABS, 'tv', 'movie', 'library', 'lists', 'ep'];
+  const allowed = state.me.is_admin ? ADMIN_TABS : [...USER_TABS, 'tv', 'movie', 'library', 'lists', 'ep', 'notifs'];
   if(!allowed.includes(name)) name = allowed[0];
-  document.querySelectorAll('.tabs a').forEach(a => a.classList.toggle('on', a.dataset.v === (['library', 'ep', 'tv'].includes(name) ? 'shows' : name === 'lists' ? 'profile' : name)));
+  document.querySelectorAll('.tabs a').forEach(a => a.classList.toggle('on', a.dataset.v === (['library', 'ep', 'tv'].includes(name) ? 'shows' : name === 'notifs' ? ''  : name === 'lists' ? 'profile' : name)));
   const tk = ++routeToken, y = scrollY;
   quietUntil = Date.now() + 1500;
   const anc = $('#anchor'), ancTop = soft && anc ? anc.getBoundingClientRect().top : null;
@@ -1010,8 +1127,8 @@ async function route(soft){
     if(tk !== routeToken) return;
     if(html != null) main.innerHTML = html;
     const a2 = $('#anchor');
-    const restore = !soft && navBack && SCROLL[location.hash] != null ? SCROLL[location.hash] : null;
-    navBack = false;
+    const restore = !soft && (navBack || tabNav) && SCROLL[location.hash] != null ? SCROLL[location.hash] : null;
+    navBack = false; tabNav = false;
     if(restore != null){ quietUntil = Date.now() + 800; scrollTo(0, restore); }
     else if(a2 && ancTop != null) scrollTo(0, scrollY + a2.getBoundingClientRect().top - ancTop);
     else if(a2 && (!soft || !anc)) toAnchor();
@@ -1043,7 +1160,12 @@ addEventListener('pageshow', e => { if(e.persisted) boot(); });
 
 /* ---------- 2. la Inapoi, lista revine unde erai ---------- */
 const SCROLL = {}, NAV = [location.hash];
-let navBack = false;
+let navBack = false, tabNav = false;
+document.addEventListener('click', e => {
+  const a = e.target.closest?.('.tabs a'); if(!a) return;
+  if(a.getAttribute('href') === location.hash){ e.preventDefault(); scrollTo({top:0, behavior:'smooth'}); return; }   // tab deja deschis -> sus
+  tabNav = true;
+});
 addEventListener('hashchange', e => {
   const oldH = new URL(e.oldURL).hash, newH = location.hash;
   SCROLL[oldH] = scrollY;
@@ -1071,7 +1193,7 @@ window.T = {
   status: (type, id, st) => act(() => api('status', {type, id, status:st}), t('movedTo', stLabel(st))),
   rate: (type, id, r, cur) => act(() => api('rate', {type, id, rating: r === cur ? null : r})),
   remove: (type, id) => sheet(type === 'tv' ? t('delShow') : t('delMovie'), type === 'tv' ? t('delShowText') : t('delMovieText'),
-    [{label:t('remove'), cls:'dan', fn:() => act(() => api('remove', {type, id}), t('removed'))}]),
+    [{label:t('dontWatch'), cls:'dan', fn:() => act(() => api('remove', {type, id}), t('removed'))}]),
   ep: (id, s, e, count, done, rt) => {
     const play = () => api('play', {type:'tv', id, season:s, episode:e, runtime:rt});
     if(!done) return act(play);
@@ -1112,7 +1234,8 @@ window.T = {
     btn.disabled = true;
     try {
       const r = await api('add', {type, id}); const st = r.item.status;
-      btn.classList.add('in'); btn.innerHTML = CHECK; btn.disabled = false;
+      btn.classList.add('in', stCls(st)); btn.innerHTML = CHECK; btn.disabled = false;
+      const dc = btn.closest('.dcard.cur'); if(dc){ dc.classList.remove('st-n'); dc.classList.add(stCls(st)); }
       markStatus(type, id, st); toast(t('addedTo', stLabel(st)));
     } catch(e){ btn.disabled = false; toast(e.message); }
   },
@@ -1221,6 +1344,14 @@ function watchedMovieCard(i){
     <button class="qadd watch in" aria-label="${t('movieWatched', i.plays || 1)}" onclick="T.movieMenu(${i.tmdb_id},${i.plays || 1},'${esc(i.title).replace(/'/g, '&#39;')}')">${CHECK}</button>
     <b>${esc(i.title)}</b><small>${i.watched_at ? t('watchedOn', fmtDate(i.watched_at.slice(0, 10))) : (i.year || '')}</small></div>`;
 }
+/* ---------- acelasi univers ---------- */
+function univHtml(r){
+  if(!r || !r.groups || !r.groups.length) return '';
+  return `<h2>${t('universe')}</h2>` + r.groups.map(g => `<h3 class="ugh">${esc(g.name === '__movies' ? t('uMovies') : g.name === '__tv' ? t('uTv') : g.name)}<span class="n">${g.items.length}</span></h3>
+    <div class="rowwrap"><button class="rarr l" aria-label="${t('scrollLeft')}" onclick="rowScroll(this,-1)">‹</button><div class="row">${g.items.map(discCard).join('')}</div>
+    <button class="rarr r" aria-label="${t('scrollRight')}" onclick="rowScroll(this,1)">›</button></div>`).join('');
+}
+
 /* ---------- grafic note IMDb pe sezoane ---------- */
 function rateColor(r){ return r >= 9 ? '#2FBF71' : r >= 8 ? '#8BCB4A' : r >= 7 ? '#F4C152' : r >= 6 ? '#F08A3E' : '#E5484D'; }
 function seasonSvg(se){
@@ -1298,8 +1429,21 @@ function hero(d, facts){
 }
 
 /* ---------- ecrane ---------- */
+async function loadUniverse(){
+  const box = $('#universe'); if(!box) return;
+  const k = box.dataset.k;
+  try {
+    const r = await api(`${k}/universe`);
+    const lm = await api('libmap');                      // bife mereu la zi, chiar daca raspunsul e din cache
+    r.groups.forEach(g => g.items.forEach(x => { x.status = (lm[x.type] || {})[x.id] || null; }));
+    state.univCache[k] = r;
+    const b2 = $('#universe'); if(b2 && b2.dataset.k === k) b2.innerHTML = univHtml(r);
+  } catch {}
+}
 const afterRender = {
+  movie(){ loadUniverse(); },
   async tv(){
+    loadUniverse();
     const box = $('#imdbchart'); if(!box) return;
     const id = +box.dataset.id;
     placeChart();
@@ -1368,8 +1512,8 @@ const views = {
       if(!list.length) return '';
       return `<h2>${lbl(k)}<span class="n">${list.length}</span></h2><div class="grid">${list.map(i => type === 'tv'
         ? posterCard({id:i.tmdb_id, type:'tv', poster:i.poster, title:i.title, progress: i.aired ? Math.round(i.watched / i.aired * 100) : 0,
-            bar: barCls(i), sub: i.aired ? t('epsProg', i.watched, i.aired) : (t('tmdb')[i.show_status] || '')})
-        : posterCard({id:i.tmdb_id, type:'movie', poster:i.poster, title:i.title, badge: i.plays > 1 ? `${i.plays}×` : '',
+            bar: barCls(i), st: i.status, sub: i.aired ? t('epsProg', i.watched, i.aired) : (t('tmdb')[i.show_status] || '')})
+        : posterCard({id:i.tmdb_id, type:'movie', poster:i.poster, title:i.title, badge: i.plays > 1 ? `${i.plays}×` : '', st: i.status,
             sub: i.release_date && i.release_date > new Date().toISOString().slice(0, 10) ? t('comingOut', fmtDate(i.release_date)) : i.year})).join('')}</div>`;
     }).join(''));
   },
@@ -1432,12 +1576,16 @@ const views = {
   async discover(){
     setTop(t('tabs').discover);
     const D = state.disc;
-    if(!D.data[D.type]) D.data[D.type] = await api('discover?type=' + D.type);
+    const [lm] = await Promise.all([api('libmap'), D.data[D.type] ? null : api('discover?type=' + D.type).then(r => { D.data[D.type] = r; })]);
+    const fix = x => { x.status = (lm[x.type] || {})[x.id] || null; };
+    D.results.forEach(fix); D.data[D.type].sections.forEach(s => s.items.forEach(fix));
     const data = D.data[D.type];
-    let h = typeToggle(D.type, 'discType');
-    h += `<div class="chips sticky"><button class="chip ${!D.genre && !D.section ? 'on' : ''}" onclick="discGenre(null)">${t('recommended')}</button>${
+    let h = `<div class="disctop">${typeToggle(D.type, 'discType')}
+      <select id="dsort" aria-label="${t('sortBy')}" onchange="discSort(this.value)">${['rec', 'pop', 'rating', 'votes', 'new', 'old', 'title'].map(k =>
+        `<option value="${k}" ${D.sort === k ? 'selected' : ''}>${t('dsorts')[k]}</option>`).join('')}</select></div>`;
+    h += `<div class="chips sticky"><button class="chip ${!D.genre && !D.section ? 'on' : ''}" onclick="discGenre(null)">${D.sort === 'rec' ? t('recommended') : t('allGenres')}</button>${
       data.genres.map(g => `<button class="chip ${D.genre === g.id ? 'on' : ''}" onclick="discGenre(${g.id})">${esc(g.name)}</button>`).join('')}</div>`;
-    if(D.genre || D.section){
+    if(D.genre || D.section || D.sort !== 'rec'){
       if(!D.results.length){ const r = await api(discQuery(1)); D.results = r.results; D.page = 1; D.pages = r.total_pages; }
       if(D.section) h += `<div class="rowline"><h2>${esc(t('sections')[D.section])}</h2><button class="link" onclick="discSection(null)">${t('backToDiscover')}</button></div>`;
       h += `<div class="grid" id="infgrid">${D.results.map(discCard).join('')}</div>` + (D.page < D.pages ? sentinel() : '');
@@ -1452,6 +1600,9 @@ const views = {
   async search(){
     setTop(t('tabs').search);
     const S = state.search;
+    if(S.results.length){
+      try { const lm = await api('libmap'); S.results.forEach(x => { x.status = (lm[x.type] || {})[x.id] || null; }); } catch {}
+    }
     return typeToggle(S.type, 'searchType') +
       `<div class="searchbox"><input id="q" type="search" placeholder="${S.type === 'tv' ? t('showName') : t('movieName')}" autocomplete="off" enterkeyhint="search" value="${esc(S.q)}"></div><div id="results">${resultsHtml()}</div>`;
   },
@@ -1468,7 +1619,7 @@ const views = {
         <span class="${d.status === 'Returning Series' ? 'live' : ''}">${t('tmdb')[d.status] || esc(d.status || '')}</span>`);
     h += `<div class="block">${rw ? `<p style="margin:0 0 10px;font-weight:700">${t('rewatchStatus', d.item.rewatch)}</p>` : ''}
       <div class="seg">${TV_KEYS.map(k => `<button class="${st === k ? 'on' : ''}" onclick="T.status('tv',${id},'${k}')">${stLabel(k)}</button>`).join('')}</div>
-      ${d.item ? `<div class="rowline" style="margin-top:12px">${stars('tv', id, d.item.rating)}<button class="btn danger" onclick="T.remove('tv',${id})">${t('remove')}</button></div>` : ''}</div>`;
+      ${d.item ? `<div class="rowline" style="margin-top:12px">${stars('tv', id, d.item.rating)}<button class="btn danger" onclick="T.remove('tv',${id})">${t('dontWatch')}</button></div>` : ''}</div>`;
     h += `<div class="block ${rw ? 'rwbox' : ''}"><div class="prog"><span><span class="big">${d.watched}</span> <span class="muted">${rw ? t('ofRewatched', d.aired, d.item.rewatch) : t('ofAired', d.aired)}</span></span><span class="muted">${pct}%</span></div>
       <div class="bar"><div class="${barCls({status:st, watched:d.watched, aired:d.aired, show_status:d.status})}" style="width:${pct}%"></div></div>
       ${d.next ? `<div class="nextrow"><div class="info"><small>${rw ? t('nextRewatch') : t('next')}</small><span class="code">${code(d.next)}</span><span class="epname">${esc(d.next.name)}</span></div>
@@ -1489,6 +1640,7 @@ const views = {
     }).join('');
     state.chartStart = d.next ? d.next.season : null;
     h += `<div id="imdbchart" data-id="${id}">${state.imdbCache[id] ? imdbChartHtml(state.imdbCache[id]) : ''}</div>`;
+    h += `<div id="universe" data-k="tv/${id}">${univHtml(state.univCache['tv/' + id])}</div>`;
     return h;
   },
 
@@ -1519,6 +1671,19 @@ const views = {
     return h;
   },
 
+  async notifs(){
+    setTop(t('notifsH'), true);
+    const r = await api('notifs');
+    updateBell();
+    if(!r.items.length) return empty(t('notifsEmpty'), t('notifsEmptyText'));
+    return `<div class="nbtns">
+        <button class="btn ghost" ${r.unread ? '' : 'disabled'} onclick="act(() => api('notifs/read', {}), t('notifsAllRead')).then(updateBell)">${t('notifsReadAll')}</button>
+        <button class="btn danger" onclick="sheet(t('notifsClearQ'), '', [{label:t('notifsClear'), cls:'dan', fn:() => act(() => api('notifs/clear', {}), t('notifsCleared')).then(updateBell)}])">${t('notifsClear')}</button></div>
+      <div class="nlist">${r.items.map(n => `<button class="nrow ${n.read ? '' : 'unread'}" onclick="openNotif(${n.id}, '${esc(n.url)}')">
+        ${thumb(n.poster)}<div class="info"><b>${esc(n.title)}</b><span>${esc(n.body)}</span><small>${timeAgo(n.created_at)}</small></div>
+        ${n.read ? '' : '<i class="udot"></i>'}</button>`).join('')}</div>`;
+  },
+
   async movie(id){
     setTop('', true); id = +id;
     const d = await api('movie/' + id); d.trailerType = 'movie';
@@ -1530,8 +1695,11 @@ const views = {
       ${d.plays ? `<div class="nextrow"><div class="info"><b>${t('movieWatched', d.plays)}</b><small>${t('lastTime', fmtDate(d.last_watched.slice(0, 10)))}</small></div>
         <button class="btn" onclick="T.moviePlay(${id},true)">${t('watchedAgain')}</button></div>
         <button class="btn danger" style="margin-top:6px" onclick="T.moviePlay(${id},false)">${t('removePlay')}</button>` : ''}
-      ${d.item ? `<div class="rowline" style="margin-top:12px">${stars('movie', id, d.item.rating)}<button class="btn danger" onclick="T.remove('movie',${id})">${t('remove')}</button></div>` : ''}</div>`;
+      ${d.item ? `<div class="rowline" style="margin-top:12px">${stars('movie', id, d.item.rating)}<button class="btn danger" onclick="T.remove('movie',${id})">${t('dontWatch')}</button></div>` : ''}</div>`;
     if(d.overview) h += `<p class="overview">${esc(d.overview)}</p>`;
+    if(d.collection) h += `<h2>${esc(d.collection.name)}<span class="n">${d.collection.parts.length}</span></h2>
+      <div class="grid">${d.collection.parts.map(p => p.current ? discCard(p).replace('class="dcard"', `class="dcard cur ${stCls(p.status) || 'st-n'}"`) : discCard(p)).join('')}</div>`;
+    h += `<div id="universe" data-k="movie/${id}">${univHtml(state.univCache['movie/' + id])}</div>`;
     return h;
   },
 
@@ -1603,7 +1771,7 @@ const views = {
         <button type="button" class="btn ghost" onclick="act(() => api('admin/tmdb-test', {}), t('tmdbOk'))">${t('testConn')}</button></div>
       <h2>${t('notifH')}</h2><div class="block">
         ${c.push_ok ? '' : `<p class="notewarn" style="margin-top:0">${t('notifServerOff')}</p>`}
-        <label class="field"><span>${t('notifTimes')}</span><input name="notify_times" value="${esc(c.notify_times.join(', '))}" placeholder="11:30, 18:30"></label>
+        <p class="muted" style="margin:0 0 12px;font-size:14px">${t('adminNotifInfo')}</p>
         <label class="field"><span>${t('tzLabel')}</span><input name="timezone" value="${esc(c.timezone)}" placeholder="Europe/Bucharest" autocapitalize="none"></label>
         <p class="muted" style="margin:-4px 0 12px;font-size:13.5px">${t('serverTime', c.server_time.replace('T', ' '))}</p>
         <button type="button" class="btn ghost" onclick="act(() => api('admin/notify-now', {}), t('notifChecking'))">${t('notifCheckNow')}</button></div>
@@ -1655,10 +1823,15 @@ async function pushReg(){ return navigator.serviceWorker.register('/sw.js').then
 async function renderPush(){
   const box = $('#pushblock'); if(!box) return;
   let p; try { p = await api('push'); } catch(e){ box.innerHTML = errorBox(e); return; }
-  const times = p.times.join(t('and'));
-  const info = `<p class="muted" style="margin:0 0 12px;font-size:14px">${t('notifInfo', times)}</p>`;
+  const info = `<p class="muted" style="margin:0 0 12px;font-size:14px">${t('notifInfo2')}</p>
+    <div class="ntlabel">${t('pushWhen')}</div>
+    <div class="ntimes" id="ntimes">${p.times.length ? p.times.map(timeRow).join('') : `<p class="ntdef">${t('pushHourly')}</p>`}</div>
+    <button class="btn ghost ntadd" onclick="addPushTime()">＋ ${t('pushAdd')}</button>`;
   const prefs = `<label class="chk"><input type="checkbox" ${p.eps ? 'checked' : ''} onchange="pushPrefs()" id="pp_eps"> ${t('notifEps')}</label>
-    <label class="chk"><input type="checkbox" ${p.movies ? 'checked' : ''} onchange="pushPrefs()" id="pp_mv"> ${t('notifMovies')}</label>`;
+    <label class="chk"><input type="checkbox" ${p.movies ? 'checked' : ''} onchange="pushPrefs()" id="pp_mv"> ${t('notifMovies')}</label>
+    <label class="field" style="margin:10px 0 0"><span>${t('notifFormat')}</span>
+      <select id="pp_fmt" onchange="pushPrefs()" style="width:100%;font:inherit;font-size:15px;padding:10px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--text)">
+      ${[2, 1, 0].map(k => `<option value="${k}" ${p.fmt === k ? 'selected' : ''}>${t('notifFmt' + k)}</option>`).join('')}</select></label>`;
   let why = '';
   if(!p.available) why = t('notifServerOff');
   else if(!window.isSecureContext) why = t('notifHttps');
@@ -1695,8 +1868,26 @@ window.pushOff = async () => {
     if(sub){ await api('push/unsubscribe', {endpoint:sub.endpoint}); await sub.unsubscribe(); } } catch {}
   renderPush();
 };
+function timeRow(v){
+  return `<div class="ntrow"><input type="time" value="${v}" onchange="pushTimes()">
+    <button class="ntdel" aria-label="${t('remove')}" onclick="this.parentNode.remove();pushTimes()"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button></div>`;
+}
+window.addPushTime = () => {
+  const box = $('#ntimes'); box.querySelector('.ntdef')?.remove();
+  const used = [...box.querySelectorAll('input')].map(i => i.value);
+  const next = ['09:00', '12:00', '18:00', '21:00', '07:00', '15:00'].find(v => !used.includes(v)) || '20:00';
+  box.insertAdjacentHTML('beforeend', timeRow(next)); pushTimes();
+};
+window.pushTimes = async () => {
+  try {
+    const times = [...document.querySelectorAll('#ntimes input')].map(i => i.value).filter(Boolean);
+    const r = await api('push/times', {times});
+    toast(r.times.length ? t('pushAt', r.times.join(', ')) : t('pushHourlyToast'));
+    if(!r.times.length) $('#ntimes').innerHTML = `<p class="ntdef">${t('pushHourly')}</p>`;
+  } catch(e){ toast(e.message); }
+};
 window.pushTest = () => act(() => api('push/test', {}), t('notifTestSent'));
-window.pushPrefs = () => api('push/prefs', {eps:$('#pp_eps').checked, movies:$('#pp_mv').checked}).catch(e => toast(e.message));
+window.pushPrefs = () => api('push/prefs', {eps:$('#pp_eps').checked, movies:$('#pp_mv').checked, fmt:+$('#pp_fmt').value}).catch(e => toast(e.message));
 afterRender.profile = () => { afterRender.profile_forms(); renderPush(); };
 afterRender.settings = afterRender.profile_forms = () => {
   const fi = $('#impfile');
@@ -1720,7 +1911,7 @@ afterRender.settings = afterRender.profile_forms = () => {
   if(sf) sf.onsubmit = ev => { ev.preventDefault(); const f = Object.fromEntries(new FormData(sf));
     act(() => api('admin/settings', {tmdb_key:f.tmdb_key, language:f.language, lan_networks:f.lan_networks.split('\n'),
       session_days:+f.session_days, max_login_fails:+f.max_login_fails,
-      notify_times:f.notify_times.split(/[,;\s]+/), timezone:f.timezone}), t('settingsSaved')); };
+      timezone:f.timezone}), t('settingsSaved')); };
 };
 afterRender.movies = bindTools;
 afterRender.lists = bindTools;
@@ -1747,8 +1938,17 @@ window.userMenu = (id, name, self) => sheet(name, self ? t('selfAdmin') : t('wha
 ]);
 window.discType = k => { const D = state.disc; if(D.type === k) return; D.type = k; D.genre = null; D.section = null; D.results = []; route(); };
 window.discGenre = g => { const D = state.disc; D.genre = g; D.section = null; D.results = []; route(); };
-window.discSection = k => { const D = state.disc; D.section = k; D.genre = null; D.results = []; route(); };
-function discQuery(page){ const D = state.disc; return D.section ? `discover?type=${D.type}&section=${D.section}&page=${page}` : `discover?type=${D.type}&genre=${D.genre}&page=${page}`; }
+window.discSection = k => { const D = state.disc; D.section = k; D.genre = null; if(k) D.sort = 'rec'; D.results = []; route(); };
+window.discSort = k => {
+  const D = state.disc; D.sort = k; D.section = null; D.results = [];
+  try { localStorage.setItem('wt-dsort', k); } catch {}
+  route();
+};
+function discQuery(page){
+  const D = state.disc;
+  if(D.section) return `discover?type=${D.type}&section=${D.section}&page=${page}`;
+  return `discover?type=${D.type}&genre=${D.genre || ''}&sort=${D.sort === 'rec' ? 'pop' : D.sort}&page=${page}`;
+}
 window.searchType = k => { const S = state.search; if(S.type === k) return; S.type = k; S.results = []; S.page = 1; S.pages = 1; route(); if(S.q) setTimeout(() => runSearch(S.q), 0); };
 function resultRow(r){
   return `<div class="result">
