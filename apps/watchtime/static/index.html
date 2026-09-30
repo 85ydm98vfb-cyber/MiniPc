@@ -1112,7 +1112,10 @@ function authScreen(mode, me){
 }
 
 /* ---------- router ---------- */
-const VIEW_HTML = {};
+const VIEW_HTML = {}, HSCROLL = {};
+const H_SEL = '.row:not(.imdbcar), .chips';
+function getHScroll(){ return [...main.querySelectorAll(H_SEL)].map(e => e.scrollLeft); }
+function setHScroll(arr){ if(arr) main.querySelectorAll(H_SEL).forEach((e, i) => { if(arr[i]) e.scrollLeft = arr[i]; }); }
 const normHash = hh => (hh && hh !== '#' && hh !== '#/') ? hh : '#/' + (state.me?.is_admin ? 'users' : 'shows');
 async function route(soft){
   if(!state.me) return;
@@ -1128,6 +1131,7 @@ async function route(soft){
     main.innerHTML = VIEW_HTML[key];
     const r = SCROLL[key];
     quietUntil = Date.now() + 800; scrollTo(0, r != null ? r : 0);
+    setHScroll(HSCROLL[key]);
     navBack = false; tabNav = false;
     afterRender[name]?.(arg);
     soft = true; fromCache = true;
@@ -1140,7 +1144,9 @@ async function route(soft){
     if(tk !== routeToken) return;
     if(fromCache && html === VIEW_HTML[key]) return;          // nimic nou -> pagina ramane neatinsa
     VIEW_HTML[key] = html;
+    const hs = soft ? getHScroll() : ((navBack || tabNav) ? HSCROLL[key] : null);   // pastrez randurile derulate lateral
     if(html != null) main.innerHTML = html;
+    setHScroll(hs);
     const a2 = $('#anchor');
     const restore = !soft && (navBack || tabNav) && SCROLL[key] != null ? SCROLL[key] : null;
     navBack = false; tabNav = false;
@@ -1191,6 +1197,7 @@ document.addEventListener('click', e => {
 addEventListener('hashchange', e => {
   const oldH = normHash(new URL(e.oldURL).hash), newH = location.hash;
   SCROLL[oldH] = scrollY;
+  HSCROLL[oldH] = getHScroll();
   navBack = NAV.length > 1 && NAV[NAV.length - 2] === newH;
   if(navBack) NAV.pop(); else NAV.push(newH);
   if(NAV.length > 50) NAV.splice(0, NAV.length - 50);
