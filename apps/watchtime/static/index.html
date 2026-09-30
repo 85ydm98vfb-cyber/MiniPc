@@ -409,6 +409,9 @@ input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display
 .ntimes input{width:100%;font:inherit;font-size:17px;font-weight:700;padding:10px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--text)}
 .ntimes .btn{grid-column:1 / -1;font-size:13.5px}
 
+.ghead{align-items:baseline}
+.ghead h2,.ghead h3{margin-bottom:10px}
+
 /* bottom sheet */
 .sheet-bg{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
 .sheet{width:100%;max-width:520px;background:var(--panel);border-radius:20px 20px 0 0;padding:18px 16px calc(16px + env(safe-area-inset-bottom,0px))}
@@ -582,7 +585,7 @@ const I18N = {
     searchWeb:'Caută pe net', webTv:'serial', webMovie:'film',
     retry:'Reîncearcă', autoRetry:'Reîncerc automat în câteva secunde.', trailer:'Trailer',
     markUpto:'Marchează tot până aici', notAiredYet:'Nu a apărut încă', noOverview:'Fără descriere.',
-    seriesH:'Seria', universe:'Din același univers', uMovies:'Alte filme', uTv:'Seriale',
+    seeLess:'Mai puțin', seriesH:'Seria', universe:'Din același univers', univPending:'Caut titlurile din același univers…', uMovies:'Alte filme', uTv:'Seriale',
     allGenres:'Toate genurile',
     dsorts:{rec:'Recomandate', pop:'Populare', rating:'Nota cea mai mare', votes:'Cele mai votate', new:'Cele mai noi', old:'Cele mai vechi', title:'Titlu A–Z'},
     seeAll:'Vezi tot', backToDiscover:'‹ Discover', markedMovie:'Film marcat ca văzut',
@@ -710,7 +713,7 @@ const I18N = {
     searchWeb:'Search the web', webTv:'TV series', webMovie:'movie',
     retry:'Try again', autoRetry:'Retrying automatically in a few seconds.', trailer:'Trailer',
     markUpto:'Mark everything up to here', notAiredYet:'Not aired yet', noOverview:'No description.',
-    seriesH:'Series', universe:'From the same universe', uMovies:'Other movies', uTv:'TV shows',
+    seeLess:'Show less', seriesH:'Series', universe:'From the same universe', univPending:'Looking for titles from the same universe…', uMovies:'Other movies', uTv:'TV shows',
     allGenres:'All genres',
     dsorts:{rec:'Recommended', pop:'Popular', rating:'Highest rated', votes:'Most voted', new:'Newest', old:'Oldest', title:'Title A–Z'},
     seeAll:'See all', backToDiscover:'‹ Discover', markedMovie:'Movie marked as watched',
@@ -742,7 +745,7 @@ function langSwitch(){
 }
 
 const state = {
-  me:null, imdbCache:{}, univCache:{}, chartStart:null, showsTab:'towatch', history:{items:[], more:false}, showsFilter:'watching', moviesFilter:'watchlist', open:{id:null, set:new Set()},
+  me:null, imdbCache:{}, univCache:{}, expanded:new Set(), chartStart:null, showsTab:'towatch', history:{items:[], more:false}, showsFilter:'watching', moviesFilter:'watchlist', open:{id:null, set:new Set()},
   search:{type:'tv', q:'', results:[], page:1, pages:1},
   disc:{type:'tv', genre:null, section:null, sort:(() => { try { return localStorage.getItem('wt-dsort') || 'rec'; } catch { return 'rec'; } })(), page:1, pages:1, results:[], data:{}},
 };
@@ -1377,11 +1380,24 @@ function watchedMovieCard(i){
 function seriesName(n){
   return String(n || '').replace(/\s*[-–:]?\s*(Collection|Colec[țţt]ia|Colec[țţt]ie)\s*$/i, '').replace(/^(Colec[țţt]ia|Colec[țţt]ie)\s+/i, '').trim() || n;
 }
+/* grup de titluri: rand derulabil lateral; peste 3 titluri -> "Vezi tot" il desface in grila */
+function groupHtml(key, head, cards){
+  const open = state.expanded.has(key), many = cards.length > 3;
+  const btn = many ? `<button class="link" onclick="toggleGroup('${esc(key).replace(/'/g, '')}')">${open ? t('seeLess') : t('seeAll') + ' ›'}</button>` : '';
+  return `<div class="rowline ghead">${head}${btn}</div>` + (open
+    ? `<div class="grid">${cards.join('')}</div>`
+    : `<div class="rowwrap"><button class="rarr l" aria-label="${t('scrollLeft')}" onclick="rowScroll(this,-1)">‹</button><div class="row">${cards.join('')}</div>
+       <button class="rarr r" aria-label="${t('scrollRight')}" onclick="rowScroll(this,1)">›</button></div>`);
+}
+window.toggleGroup = key => {
+  const S = state.expanded; S.has(key) ? S.delete(key) : S.add(key);
+  const y = scrollY; route(true).then(() => scrollTo(0, y));
+};
 function univHtml(r){
   if(!r || !r.groups || !r.groups.length) return '';
-  return `<h2>${t('universe')}</h2>` + r.groups.map(g => `<h3 class="ugh">${esc(g.name === '__movies' ? t('uMovies') : g.name === '__tv' ? t('uTv') : g.name)}<span class="n">${g.items.length}</span></h3>
-    <div class="rowwrap"><button class="rarr l" aria-label="${t('scrollLeft')}" onclick="rowScroll(this,-1)">‹</button><div class="row">${g.items.map(discCard).join('')}</div>
-    <button class="rarr r" aria-label="${t('scrollRight')}" onclick="rowScroll(this,1)">›</button></div>`).join('');
+  return `<h2>${t('universe')}</h2>` + r.groups.map(g => groupHtml('u:' + g.name,
+    `<h3 class="ugh">${esc(g.name === '__movies' ? t('uMovies') : g.name === '__tv' ? t('uTv') : g.name)}<span class="n">${g.items.length}</span></h3>`,
+    g.items.map(discCard))).join('');
 }
 
 /* ---------- grafic note IMDb pe sezoane ---------- */
@@ -1461,11 +1477,17 @@ function hero(d, facts){
 }
 
 /* ---------- ecrane ---------- */
-async function loadUniverse(){
+async function loadUniverse(tries = 0){
   const box = $('#universe'); if(!box) return;
   const k = box.dataset.k;
   try {
     const r = await api(`${k}/universe`);
+    if(r.state === 'pending'){                           // se cauta in fundal -> mai intreb peste putin
+      if(!box.innerHTML.trim()) box.innerHTML = `<h2>${t('universe')}</h2><p class="muted" style="font-size:14px">${t('univPending')}</p>`;
+      if(tries < 20) setTimeout(() => { const b = $('#universe'); if(b && b.dataset.k === k) loadUniverse(tries + 1); }, 15000);
+      else box.innerHTML = '';
+      return;
+    }
     const lm = await api('libmap');                      // bife mereu la zi, chiar daca raspunsul e din cache
     r.groups.forEach(g => g.items.forEach(x => { x.status = (lm[x.type] || {})[x.id] || null; }));
     state.univCache[k] = r;
@@ -1473,7 +1495,11 @@ async function loadUniverse(){
   } catch {}
 }
 const afterRender = {
-  movie(){ loadUniverse(); },
+  movie(){
+    const cur = $('.row .dcard.cur'), row = cur && cur.closest('.row');
+    if(row && !row.scrollLeft) row.scrollLeft = Math.max(0, cur.offsetLeft - row.offsetLeft - 16);
+    loadUniverse();
+  },
   async tv(){
     loadUniverse();
     const box = $('#imdbchart'); if(!box) return;
@@ -1729,8 +1755,9 @@ const views = {
         <button class="btn danger" style="margin-top:6px" onclick="T.moviePlay(${id},false)">${t('removePlay')}</button>` : ''}
       ${d.item ? `<div class="rowline" style="margin-top:12px">${stars('movie', id, d.item.rating)}<button class="btn danger" onclick="T.remove('movie',${id})">${t('dontWatch')}</button></div>` : ''}</div>`;
     if(d.overview) h += `<p class="overview">${esc(d.overview)}</p>`;
-    if(d.collection) h += `<h2>${t('seriesH')}: ${esc(seriesName(d.collection.name))}<span class="n">${d.collection.parts.length}</span></h2>
-      <div class="grid">${d.collection.parts.map(p => p.current ? discCard(p).replace('class="dcard"', `class="dcard cur ${stCls(p.status) || 'st-n'}"`) : discCard(p)).join('')}</div>`;
+    if(d.collection) h += groupHtml('c:' + d.collection.id,
+      `<h2>${t('seriesH')}: ${esc(seriesName(d.collection.name))}<span class="n">${d.collection.parts.length}</span></h2>`,
+      d.collection.parts.map(p => p.current ? discCard(p).replace('class="dcard"', `class="dcard cur ${stCls(p.status) || 'st-n'}"`) : discCard(p)));
     h += `<div id="universe" data-k="movie/${id}">${univHtml(state.univCache['movie/' + id])}</div>`;
     return h;
   },

@@ -723,7 +723,9 @@ def api_movie(u, mid):
 # ---------- acelasi univers (Wikidata: univers fictional / francriza) ----------
 # Wikidata prin API-ul obisnuit (www.wikidata.org/w/api.php), nu prin serviciul SPARQL (limitat des la 1 cerere/min)
 WD_API = "https://www.wikidata.org/w/api.php"
-WD_HEADERS = {"User-Agent": "WatchTime/1.0 (self-hosted personal app; python-urllib)"}
+def wd_headers():
+    contact = (CFG.get("push_contact") or "").replace("mailto:", "") or "no-contact"
+    return {"User-Agent": f"WatchTime/1.0 (personal self-hosted TV tracker; contact: {contact})"}
 WD_LOCK = threading.Lock()
 WD_BLOCK = [0.0]            # dupa un 429, asteptam cat cere serverul
 
@@ -732,7 +734,7 @@ def wd_get(params):
     if time.time() < WD_BLOCK[0]:
         raise RuntimeError("wikidata: pauza dupa limitare")
     params = dict(params, format="json", formatversion="2")
-    req = urllib.request.Request(WD_API + "?" + urllib.parse.urlencode(params), headers=WD_HEADERS)
+    req = urllib.request.Request(WD_API + "?" + urllib.parse.urlencode(params), headers=wd_headers())
     with WD_LOCK:
         try:
             with urllib.request.urlopen(req, timeout=20) as r:
@@ -832,10 +834,43 @@ def wikidata_universe(kind, tid, lang):
     return out
 
 
+WD_QUEUE, WD_PENDING, WD_QLOCK = [], set(), threading.Lock()
+
+
+def wd_cached(kind, tid, lang):
+    row = q1("SELECT body, fetched FROM cache WHERE key=?", (f"wd2|{kind}|{tid}|{lang}",))
+    return (json.loads(row["body"]), time.time() - row["fetched"] < 7 * 86400) if row else (None, False)
+
+
+def wd_worker():
+    while True:
+        with WD_QLOCK:
+            job = WD_QUEUE.pop(0) if WD_QUEUE else None
+        if not job:
+            time.sleep(2)
+            continue
+        for attempt in range(6):
+            wait = WD_BLOCK[0] - time.time()
+            if wait > 0:
+                time.sleep(min(wait, 600))
+            if wikidata_universe(*job) is not None:
+                break
+            if WD_BLOCK[0] <= time.time():      # alta eroare decat limitarea -> renunt pentru acum
+                break
+        with WD_QLOCK:
+            WD_PENDING.discard(job)
+
+
 def api_universe(u, kind, tid, lang):
-    found = wikidata_universe(kind, tid, lang)
-    if found is None:
-        return {"groups": [], "state": "offline"}
+    found, fresh = wd_cached(kind, tid, lang)
+    if not fresh:
+        job = (kind, tid, lang)
+        with WD_QLOCK:
+            if job not in WD_PENDING:
+                WD_PENDING.add(job)
+                WD_QUEUE.append(job)
+        if found is None:
+            return {"groups": [], "state": "pending"}
     skip = {(kind, tid)}
     if kind == "movie":     # filmele din propria colectie apar deja in sectiunea Seria
         c = (tmdb(f"/movie/{tid}").get("belongs_to_collection") or {}).get("id")
@@ -1957,6 +1992,7 @@ if __name__ == "__main__":
     ThreadingHTTPServer.daemon_threads = True
     threading.Thread(target=notify_scheduler, daemon=True).start()
     threading.Thread(target=IMDB.loop, daemon=True).start()
+    threading.Thread(target=wd_worker, daemon=True).start()
     if not VAPID:
         print("Notificari dezactivate: instaleaza pachetul cryptography (Alpine: doas apk add py3-cryptography)", flush=True)
     srv = ThreadingHTTPServer((CFG["host"], int(CFG["port"])), Handler)
