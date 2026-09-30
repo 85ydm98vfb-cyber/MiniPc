@@ -52,6 +52,16 @@ class Ratings:
         return (time.time() - os.path.getmtime(self.path)) / 3600 if os.path.exists(self.path) else None
 
     def _download(self, url, dest):
+        for attempt in range(4):
+            try:
+                return self._download_once(url, dest)
+            except Exception as e:
+                if attempt == 3:
+                    raise
+                self.log(f"Descarcarea {url.rsplit('/', 1)[-1]} a esuat ({e}); reincerc in {30 * (attempt + 1)}s")
+                time.sleep(30 * (attempt + 1))
+
+    def _download_once(self, url, dest):
         req = urllib.request.Request(url, headers={"User-Agent": "WatchTime/1.0"})
         with urllib.request.urlopen(req, timeout=600) as r, open(dest, "wb") as f:
             while True:
@@ -120,6 +130,19 @@ class Ratings:
                 ne = db.execute("SELECT COUNT(*) FROM e").fetchone()[0]
             except Exception as e:
                 self.log(f"Lista de episoade IMDb nu a putut fi descarcata: {e}")
+                try:
+                    db.execute("DELETE FROM e")
+                    if os.path.exists(self.path):
+                        db.execute("ATTACH DATABASE ? AS old", (self.path,))
+                        if db.execute("SELECT 1 FROM old.sqlite_master WHERE name='e'").fetchone():
+                            db.execute("INSERT OR IGNORE INTO e SELECT * FROM old.e")
+                        db.commit()
+                        db.execute("DETACH DATABASE old")
+                    ne = db.execute("SELECT COUNT(*) FROM e").fetchone()[0]
+                    if ne:
+                        self.log(f"Pastrez lista de episoade anterioara ({ne} episoade)")
+                except Exception as e2:
+                    self.log(f"Nu am putut pastra lista veche de episoade: {e2}")
             db.close()
             with self.lock:
                 if self.conn:
