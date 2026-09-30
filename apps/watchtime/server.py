@@ -786,26 +786,52 @@ def wd_vals(ent, prop):
     return out
 
 
+LINK_PROPS = ("P1434", "P8345", "P179", "P144")   # univers fictional, franciza, serie, opera de baza
+
+
 def wikidata_universe(kind, tid, lang):
-    """Titlurile (film/serial, id TMDB) din acelasi univers, cu seria din care fac parte. Cache 7 zile."""
-    key = f"wd2|{kind}|{tid}|{lang}"
+    """Titlurile (film/serial, id TMDB) din aceeasi franciza, cu seria din care fac parte. Cache 7 zile.
+    Pleaca de la titlu si de la toate filmele din colectia lui TMDB, foloseste toate legaturile deodata
+    si urca un nivel de la serie la franciza / universul ei."""
+    key = f"wd3|{kind}|{tid}|{lang}"
     row = q1("SELECT body, fetched FROM cache WHERE key=?", (key,))
     if row and time.time() - row["fetched"] < 7 * 86400:
         return json.loads(row["body"])
     try:
-        src = wd_search(f"haswbstatement:{'P4947' if kind == 'movie' else 'P4983'}={int(tid)}", limit=1)
+        ors = [f"{'P4947' if kind == 'movie' else 'P4983'}={int(tid)}"]
+        if kind == "movie":          # toate filmele din colectie
+            c = (tmdb(f"/movie/{tid}").get("belongs_to_collection") or {}).get("id")
+            if c:
+                try:
+                    ors += [f"P4947={p['id']}" for p in tmdb(f"/collection/{c}", ttl=7 * 86400).get("parts") or []]
+                except ApiError:
+                    pass
+        src = wd_search("haswbstatement:" + "|".join(dict.fromkeys(ors)), limit=50)
         out = []
         if src:
-            ent = wd_entities(src).get(src[0], {})
-            # universul fictional / franciza; daca lipsesc: seria, apoi opera pe care se bazeaza
-            for props in (("P1434", "P8345"), ("P179",), ("P144",)):
-                pairs = [(p, v) for p in props for v in wd_vals(ent, p) if isinstance(v, str) and v.startswith("Q")]
-                if pairs:
-                    break
+            pairs = set()
+            for ent in wd_entities(src).values():
+                for p in LINK_PROPS:
+                    for v in wd_vals(ent, p):
+                        if isinstance(v, str) and v.startswith("Q"):
+                            pairs.add((p, v))
+            # un nivel mai sus: seria -> franciza / universul / intregul din care face parte
+            series = [v for p, v in pairs if p == "P179"]
+            if series:
+                for ent in wd_entities(series).values():
+                    for p in ("P8345", "P1434", "P361"):
+                        for v in wd_vals(ent, p):
+                            if isinstance(v, str) and v.startswith("Q"):
+                                pairs.add(("P8345" if p == "P361" else p, v))
+                                if p == "P361":
+                                    pairs.add(("P179", v))
             if pairs:
-                ors = "|".join(f"{p}={v}" for p, v in pairs)
-                qids = wd_search(f"haswbstatement:{ors} haswbstatement:P4947") + \
-                    wd_search(f"haswbstatement:{ors} haswbstatement:P4983")
+                # orice titlu legat de aceste elemente, prin oricare dintre legaturi (ex. serial legat prin "univers"
+                # de franciza pe care filmul o are trecuta la "franciza")
+                vals = sorted({v for _, v in pairs})
+                orq = "|".join(f"{p}={v}" for v in vals for p in LINK_PROPS)
+                qids = wd_search(f"haswbstatement:{orq} haswbstatement:P4947", limit=250) + \
+                    wd_search(f"haswbstatement:{orq} haswbstatement:P4983", limit=120)
                 ents = wd_entities(qids)
                 series_ids = [v for e in ents.values() for v in wd_vals(e, "P179")]
                 labels = {}
@@ -822,13 +848,13 @@ def wikidata_universe(kind, tid, lang):
                         for v in wd_vals(e, p):
                             if str(v).isdigit() and (ty, int(v)) not in seen:
                                 seen.add((ty, int(v)))
-                                out.append({"type": ty, "id": int(v), "series": ser, "date": dates[0] if dates else None})
+                                out.append({"type": ty, "id": int(v), "series": ser if ty == "movie" else None,
+                                            "date": dates[0] if dates else None})
     except Exception as e:
         print(f"{now()} Wikidata nu a raspuns pentru {kind} {tid}: {e}", flush=True)
         return json.loads(row["body"]) if row else None
     if not out:
-        print(f"{now()} Wikidata: niciun univers gasit pentru {kind} {tid}", flush=True)
-    # rezultat gol: se reincearca peste o zi; altfel peste 7 zile
+        print(f"{now()} Wikidata: nicio franciza gasita pentru {kind} {tid}", flush=True)
     x("INSERT OR REPLACE INTO cache(key, body, fetched) VALUES(?,?,?)",
       (key, json.dumps(out), time.time() - (6 * 86400 if not out else 0)))
     return out
@@ -838,7 +864,7 @@ WD_QUEUE, WD_PENDING, WD_QLOCK = [], set(), threading.Lock()
 
 
 def wd_cached(kind, tid, lang):
-    row = q1("SELECT body, fetched FROM cache WHERE key=?", (f"wd2|{kind}|{tid}|{lang}",))
+    row = q1("SELECT body, fetched FROM cache WHERE key=?", (f"wd3|{kind}|{tid}|{lang}",))
     return (json.loads(row["body"]), time.time() - row["fetched"] < 7 * 86400) if row else (None, False)
 
 
@@ -879,7 +905,8 @@ def api_universe(u, kind, tid, lang):
                 skip |= {("movie", p["id"]) for p in tmdb(f"/collection/{c}", ttl=7 * 86400).get("parts") or []}
             except ApiError:
                 pass
-    cand = [f for f in found if (f["type"], f["id"]) not in skip][:80]
+    rest = [f for f in found if (f["type"], f["id"]) not in skip]
+    cand = [f for f in rest if f["type"] == "movie"][:90] + [f for f in rest if f["type"] == "tv"][:50]   # loc si pentru seriale
     lib = lib_map(u)
 
     def load(f):
@@ -1485,6 +1512,21 @@ def get_api(ctx, parts, qs):
         return api_discover(u, qs)
     if a == "tv" and len(parts) == 2:
         return api_tv(u, int(parts[1]))
+    if a in ("tv", "movie") and len(parts) == 3 and parts[2] == "similar":   # "Vezi si": recomandari TMDB
+        lib, kind, tid = lib_map(u), a, int(parts[1])
+        items, seen = [], set()
+        for path in (f"/{kind}/{tid}/recommendations", f"/{kind}/{tid}/similar"):
+            if len(items) >= 12:
+                break
+            try:
+                res = tmdb(path, ttl=24 * 3600).get("results", [])
+            except ApiError:
+                continue
+            for r in res:
+                if r.get("id") and r["id"] not in seen and r["id"] != tid:
+                    seen.add(r["id"])
+                    items.append(card(r, kind, lib))
+        return {"items": items[:24]}
     if a in ("tv", "movie") and len(parts) == 3 and parts[2] == "universe":
         lang = "en" if (ctx["user"].get("lang") == "en") else "ro"
         return coalesce(("univ", u, a, parts[1]), lambda: api_universe(u, a, int(parts[1]), lang))

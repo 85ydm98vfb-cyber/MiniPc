@@ -585,7 +585,7 @@ const I18N = {
     searchWeb:'Caută pe net', webTv:'serial', webMovie:'film',
     retry:'Reîncearcă', autoRetry:'Reîncerc automat în câteva secunde.', trailer:'Trailer',
     markUpto:'Marchează tot până aici', notAiredYet:'Nu a apărut încă', noOverview:'Fără descriere.',
-    seeLess:'Mai puțin', seriesH:'Seria', universe:'Din același univers', univPending:'Caut titlurile din același univers…', uMovies:'Alte filme', uTv:'Seriale',
+    seeLess:'Mai puțin', seriesH:'Seria', universe:'Din aceeași franciză', tvFranchise:'Seriale în franciză', seeAlso:'Vezi și', univPending:'Caut titlurile din aceeași franciză…', uMovies:'Alte filme', uTv:'Seriale',
     allGenres:'Toate genurile',
     dsorts:{rec:'Recomandate', pop:'Populare', rating:'Nota cea mai mare', votes:'Cele mai votate', new:'Cele mai noi', old:'Cele mai vechi', title:'Titlu A–Z'},
     seeAll:'Vezi tot', backToDiscover:'‹ Discover', markedMovie:'Film marcat ca văzut',
@@ -713,7 +713,7 @@ const I18N = {
     searchWeb:'Search the web', webTv:'TV series', webMovie:'movie',
     retry:'Try again', autoRetry:'Retrying automatically in a few seconds.', trailer:'Trailer',
     markUpto:'Mark everything up to here', notAiredYet:'Not aired yet', noOverview:'No description.',
-    seeLess:'Show less', seriesH:'Series', universe:'From the same universe', univPending:'Looking for titles from the same universe…', uMovies:'Other movies', uTv:'TV shows',
+    seeLess:'Show less', seriesH:'Series', universe:'From the same franchise', tvFranchise:'TV shows in the franchise', seeAlso:'See also', univPending:'Looking for titles from the same franchise…', uMovies:'Other movies', uTv:'TV shows',
     allGenres:'All genres',
     dsorts:{rec:'Recommended', pop:'Popular', rating:'Highest rated', votes:'Most voted', new:'Newest', old:'Oldest', title:'Title A–Z'},
     seeAll:'See all', backToDiscover:'‹ Discover', markedMovie:'Movie marked as watched',
@@ -745,7 +745,7 @@ function langSwitch(){
 }
 
 const state = {
-  me:null, imdbCache:{}, univCache:{}, expanded:new Set(), chartStart:null, showsTab:'towatch', history:{items:[], more:false}, showsFilter:'watching', moviesFilter:'watchlist', open:{id:null, set:new Set()},
+  me:null, imdbCache:{}, univCache:{}, simCache:{}, expanded:new Set(), chartStart:null, showsTab:'towatch', history:{items:[], more:false}, showsFilter:'watching', moviesFilter:'watchlist', open:{id:null, set:new Set()},
   search:{type:'tv', q:'', results:[], page:1, pages:1},
   disc:{type:'tv', genre:null, section:null, sort:(() => { try { return localStorage.getItem('wt-dsort') || 'rec'; } catch { return 'rec'; } })(), page:1, pages:1, results:[], data:{}},
 };
@@ -1395,9 +1395,31 @@ window.toggleGroup = key => {
 };
 function univHtml(r){
   if(!r || !r.groups || !r.groups.length) return '';
-  return `<h2>${t('universe')}</h2>` + r.groups.map(g => groupHtml('u:' + g.name,
-    `<h3 class="ugh">${esc(g.name === '__movies' ? t('uMovies') : g.name === '__tv' ? t('uTv') : g.name)}<span class="n">${g.items.length}</span></h3>`,
+  const films = r.groups.filter(g => g.name !== '__tv'), tv = r.groups.find(g => g.name === '__tv');
+  let out = '';
+  if(films.length) out += `<h2>${t('universe')}</h2>` + films.map(g => groupHtml('u:' + g.name,
+    `<h3 class="ugh">${esc(g.name === '__movies' ? t('uMovies') : g.name)}<span class="n">${g.items.length}</span></h3>`,
     g.items.map(discCard))).join('');
+  if(tv) out += groupHtml('u:__tv', `<h2>${t('tvFranchise')}<span class="n">${tv.items.length}</span></h2>`, tv.items.map(discCard));
+  return out;
+}
+/* "Vezi si": recomandari, fara titlurile deja afisate mai sus pe pagina */
+function seeAlsoHtml(r){
+  if(!r || !r.items) return '';
+  const shown = new Set([...document.querySelectorAll('#main .dcard a.pimg')].filter(a => !a.closest('#seealso')).map(a => a.getAttribute('href')));
+  const items = r.items.filter(x => !shown.has(`#/${x.type}/${x.id}`));
+  return items.length ? groupHtml('s:see', `<h2>${t('seeAlso')}<span class="n">${items.length}</span></h2>`, items.map(discCard)) : '';
+}
+function renderSeeAlso(){ const b = $('#seealso'); if(b) b.innerHTML = seeAlsoHtml(state.simCache[b.dataset.k]); }
+async function loadSeeAlso(){
+  const box = $('#seealso'); if(!box) return;
+  const k = box.dataset.k;
+  try {
+    const [r, lm] = await Promise.all([api(`${k}/similar`), api('libmap')]);
+    r.items.forEach(x => { x.status = (lm[x.type] || {})[x.id] || null; });
+    state.simCache[k] = r;
+    const b2 = $('#seealso'); if(b2 && b2.dataset.k === k) renderSeeAlso();
+  } catch {}
 }
 
 /* ---------- grafic note IMDb pe sezoane ---------- */
@@ -1491,17 +1513,17 @@ async function loadUniverse(tries = 0){
     const lm = await api('libmap');                      // bife mereu la zi, chiar daca raspunsul e din cache
     r.groups.forEach(g => g.items.forEach(x => { x.status = (lm[x.type] || {})[x.id] || null; }));
     state.univCache[k] = r;
-    const b2 = $('#universe'); if(b2 && b2.dataset.k === k) b2.innerHTML = univHtml(r);
+    const b2 = $('#universe'); if(b2 && b2.dataset.k === k){ b2.innerHTML = univHtml(r); renderSeeAlso(); }
   } catch {}
 }
 const afterRender = {
   movie(){
     const cur = $('.row .dcard.cur'), row = cur && cur.closest('.row');
     if(row && !row.scrollLeft) row.scrollLeft = Math.max(0, cur.offsetLeft - row.offsetLeft - 16);
-    loadUniverse();
+    loadUniverse(); renderSeeAlso(); loadSeeAlso();
   },
   async tv(){
-    loadUniverse();
+    loadUniverse(); renderSeeAlso(); loadSeeAlso();
     const box = $('#imdbchart'); if(!box) return;
     const id = +box.dataset.id;
     placeChart();
@@ -1698,7 +1720,7 @@ const views = {
     }).join('');
     state.chartStart = d.next ? d.next.season : null;
     h += `<div id="imdbchart" data-id="${id}">${state.imdbCache[id] ? imdbChartHtml(state.imdbCache[id]) : ''}</div>`;
-    h += `<div id="universe" data-k="tv/${id}">${univHtml(state.univCache['tv/' + id])}</div>`;
+    h += `<div id="universe" data-k="tv/${id}">${univHtml(state.univCache['tv/' + id])}</div><div id="seealso" data-k="tv/${id}"></div>`;
     return h;
   },
 
@@ -1758,7 +1780,7 @@ const views = {
     if(d.collection) h += groupHtml('c:' + d.collection.id,
       `<h2>${t('seriesH')}: ${esc(seriesName(d.collection.name))}<span class="n">${d.collection.parts.length}</span></h2>`,
       d.collection.parts.map(p => p.current ? discCard(p).replace('class="dcard"', `class="dcard cur ${stCls(p.status) || 'st-n'}"`) : discCard(p)));
-    h += `<div id="universe" data-k="movie/${id}">${univHtml(state.univCache['movie/' + id])}</div>`;
+    h += `<div id="universe" data-k="movie/${id}">${univHtml(state.univCache['movie/' + id])}</div><div id="seealso" data-k="movie/${id}"></div>`;
     return h;
   },
 
