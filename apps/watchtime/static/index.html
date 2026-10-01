@@ -24,9 +24,11 @@
   color-scheme:dark;
 }
 :root[data-theme=grey]{
-  --bg:#1E1F22;--panel:#2A2B30;--panel2:#35363C;--line:#44454C;
-  --text:#EFEDE8;--muted:#A6A6AE;--accent:#F4C152;--accent-ink:#241A00;
-  --ok:#5CC8B0;--danger:#EC7B70;--shade:rgba(0,0,0,.45);
+  /* gri mediu, la jumatatea drumului dintre alb si negru; cardurile mai inchise, ca textul alb sa se citeasca bine */
+  --bg:#7A7C83;--panel:#62646B;--panel2:#55575E;--line:#8C8E95;
+  --text:#FFFFFF;--muted:#E2E3E7;--accent:#FFD25E;--accent-ink:#2A1E00;
+  --ok:#86F0D3;--danger:#FFB4AD;--shade:rgba(0,0,0,.35);
+  --done:#7DF29B;--more:#F0A8FF;
   color-scheme:dark;
 }
 :root[data-theme=light]{
@@ -411,6 +413,10 @@ input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display
 
 .ghead{align-items:baseline}
 .ghead h2,.ghead h3{margin-bottom:10px}
+
+.eplinkrow{color:inherit;border-radius:10px}
+.eplinkrow:active{background:var(--panel2)}
+.eplinkrow .epname{color:var(--text)}
 
 /* bottom sheet */
 .sheet-bg{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
@@ -981,7 +987,7 @@ document.addEventListener('wheel', e => {
 
 /* ---------- tema ---------- */
 function getTheme(){ try { return localStorage.getItem('wt-theme') || 'auto'; } catch { return 'auto'; } }
-const THEME_BG = {dark:'#000000', grey:'#1E1F22', light:'#E9ECF4'};
+const THEME_BG = {dark:'#000000', grey:'#7A7C83', light:'#E9ECF4'};
 /* ---------- tema dupa ora zilei (rasarit / apus calculate local) ---------- */
 function sunTimes(date, lat, lng){
   const rad = Math.PI / 180, dayMs = 864e5, J1970 = 2440588, J2000 = 2451545, e = rad * 23.4397, J0 = 0.0009;
@@ -1115,10 +1121,33 @@ function authScreen(mode, me){
 }
 
 /* ---------- router ---------- */
-const VIEW_HTML = {}, HSCROLL = {};
+const VIEW_HTML = {}, VIEW_DOM = {}, HSCROLL = {};
 const H_SEL = '.row:not(.imdbcar), .chips';
-function getHScroll(){ return [...main.querySelectorAll(H_SEL)].map(e => e.scrollLeft); }
-function setHScroll(arr){ if(arr) main.querySelectorAll(H_SEL).forEach((e, i) => { if(arr[i]) e.scrollLeft = arr[i]; }); }
+// randurile cu cheie (Seria, Franciza, Seriale in franciza, Vezi si) se memoreaza dupa nume, celelalte dupa ordine
+function getHScroll(root = main){
+  const k = {}, idx = [];
+  root.querySelectorAll(H_SEL).forEach(e => { if(e.dataset.hk) k[e.dataset.hk] = e.scrollLeft; else idx.push(e.scrollLeft); });
+  return {k, idx};
+}
+function setHScroll(snap, root = main, keyedOnly = false){
+  if(!snap) return;
+  let i = 0;
+  root.querySelectorAll(H_SEL).forEach(e => {
+    if(e.dataset.hk){ const v = snap.k && snap.k[e.dataset.hk]; if(v) e.scrollLeft = v; }
+    else if(!keyedOnly){ const v = snap.idx && snap.idx[i++]; if(v) e.scrollLeft = v; }
+  });
+}
+// sectiunile care se incarca dupa pagina (franciza, vezi si) isi recapata pozitia cand apar
+let PENDING_H = null;
+function fillKeepH(el, html){
+  const before = getHScroll(el);
+  el.innerHTML = html;
+  setHScroll(before, el, true);
+  if(PENDING_H && PENDING_H.key === normHash(location.hash) && Date.now() - PENDING_H.t < 8000){
+    setHScroll(PENDING_H.snap, el, true);
+    if(PENDING_H.y && scrollY < PENDING_H.y - 4){ quietUntil = Date.now() + 600; scrollTo(0, PENDING_H.y); }   // pagina a crescut -> revin unde eram
+  }
+}
 const normHash = hh => (hh && hh !== '#' && hh !== '#/') ? hh : '#/' + (state.me?.is_admin ? 'users' : 'shows');
 async function route(soft){
   if(!state.me) return;
@@ -1131,10 +1160,11 @@ async function route(soft){
   // la schimbarea tabului / Inapoi: pagina apare instant, exact cum era; datele se verifica in fundal
   let fromCache = false;
   if(!soft && (navBack || tabNav) && VIEW_HTML[key]){
-    main.innerHTML = VIEW_HTML[key];
+    main.innerHTML = VIEW_DOM[key] || VIEW_HTML[key];
     const r = SCROLL[key];
     quietUntil = Date.now() + 800; scrollTo(0, r != null ? r : 0);
     setHScroll(HSCROLL[key]);
+    PENDING_H = {key, snap: HSCROLL[key], y: r, t: Date.now()};
     navBack = false; tabNav = false;
     afterRender[name]?.(arg);
     soft = true; fromCache = true;
@@ -1148,6 +1178,7 @@ async function route(soft){
     if(fromCache && html === VIEW_HTML[key]) return;          // nimic nou -> pagina ramane neatinsa
     VIEW_HTML[key] = html;
     const hs = soft ? getHScroll() : ((navBack || tabNav) ? HSCROLL[key] : null);   // pastrez randurile derulate lateral
+    if(!soft) PENDING_H = (navBack || tabNav) && HSCROLL[key] ? {key, snap: HSCROLL[key], y: SCROLL[key], t: Date.now()} : null;
     if(html != null) main.innerHTML = html;
     setHScroll(hs);
     const a2 = $('#anchor');
@@ -1201,6 +1232,7 @@ addEventListener('hashchange', e => {
   const oldH = normHash(new URL(e.oldURL).hash), newH = location.hash;
   SCROLL[oldH] = scrollY;
   HSCROLL[oldH] = getHScroll();
+  if(VIEW_HTML[oldH]) VIEW_DOM[oldH] = main.innerHTML;
   navBack = NAV.length > 1 && NAV[NAV.length - 2] === newH;
   if(navBack) NAV.pop(); else NAV.push(newH);
   if(NAV.length > 50) NAV.splice(0, NAV.length - 50);
@@ -1386,7 +1418,7 @@ function groupHtml(key, head, cards){
   const btn = many ? `<button class="link" onclick="toggleGroup('${esc(key).replace(/'/g, '')}')">${open ? t('seeLess') : t('seeAll') + ' ›'}</button>` : '';
   return `<div class="rowline ghead">${head}${btn}</div>` + (open
     ? `<div class="grid">${cards.join('')}</div>`
-    : `<div class="rowwrap"><button class="rarr l" aria-label="${t('scrollLeft')}" onclick="rowScroll(this,-1)">‹</button><div class="row">${cards.join('')}</div>
+    : `<div class="rowwrap"><button class="rarr l" aria-label="${t('scrollLeft')}" onclick="rowScroll(this,-1)">‹</button><div class="row" data-hk="${esc(key)}">${cards.join('')}</div>
        <button class="rarr r" aria-label="${t('scrollRight')}" onclick="rowScroll(this,1)">›</button></div>`);
 }
 window.toggleGroup = key => {
@@ -1410,7 +1442,7 @@ function seeAlsoHtml(r){
   const items = r.items.filter(x => !shown.has(`#/${x.type}/${x.id}`));
   return items.length ? groupHtml('s:see', `<h2>${t('seeAlso')}<span class="n">${items.length}</span></h2>`, items.map(discCard)) : '';
 }
-function renderSeeAlso(){ const b = $('#seealso'); if(b) b.innerHTML = seeAlsoHtml(state.simCache[b.dataset.k]); }
+function renderSeeAlso(){ const b = $('#seealso'); if(b) fillKeepH(b, seeAlsoHtml(state.simCache[b.dataset.k])); }
 async function loadSeeAlso(){
   const box = $('#seealso'); if(!box) return;
   const k = box.dataset.k;
@@ -1513,13 +1545,14 @@ async function loadUniverse(tries = 0){
     const lm = await api('libmap');                      // bife mereu la zi, chiar daca raspunsul e din cache
     r.groups.forEach(g => g.items.forEach(x => { x.status = (lm[x.type] || {})[x.id] || null; }));
     state.univCache[k] = r;
-    const b2 = $('#universe'); if(b2 && b2.dataset.k === k){ b2.innerHTML = univHtml(r); renderSeeAlso(); }
+    const b2 = $('#universe'); if(b2 && b2.dataset.k === k){ fillKeepH(b2, univHtml(r)); renderSeeAlso(); }
   } catch {}
 }
 const afterRender = {
   movie(){
     const cur = $('.row .dcard.cur'), row = cur && cur.closest('.row');
-    if(row && !row.scrollLeft) row.scrollLeft = Math.max(0, cur.offsetLeft - row.offsetLeft - 16);
+    const saved = PENDING_H && PENDING_H.key === normHash(location.hash) && row && PENDING_H.snap.k && PENDING_H.snap.k[row.dataset.hk] != null;
+    if(row && !row.scrollLeft && !saved) row.scrollLeft = Math.max(0, cur.offsetLeft - row.offsetLeft - 16);
     loadUniverse(); renderSeeAlso(); loadSeeAlso();
   },
   async tv(){
@@ -1702,9 +1735,9 @@ const views = {
       ${d.item ? `<div class="rowline" style="margin-top:12px">${stars('tv', id, d.item.rating)}<button class="btn danger" onclick="T.remove('tv',${id})">${t('dontWatch')}</button></div>` : ''}</div>`;
     h += `<div class="block ${rw ? 'rwbox' : ''}"><div class="prog"><span><span class="big">${d.watched}</span> <span class="muted">${rw ? t('ofRewatched', d.aired, d.item.rewatch) : t('ofAired', d.aired)}</span></span><span class="muted">${pct}%</span></div>
       <div class="bar"><div class="${barCls({status:st, watched:d.watched, aired:d.aired, show_status:d.status})}" style="width:${pct}%"></div></div>
-      ${d.next ? `<div class="nextrow"><div class="info"><small>${rw ? t('nextRewatch') : t('next')}</small><span class="code">${code(d.next)}</span><span class="epname">${esc(d.next.name)}</span></div>
+      ${d.next ? `<div class="nextrow"><a class="info eplinkrow" href="#/ep/${id}-${d.next.season}-${d.next.episode}"><small>${rw ? t('nextRewatch') : t('next')}</small><span class="code">${code(d.next)}</span><span class="epname">${esc(d.next.name)} ›</span></a>
         <button class="check" aria-label="${t('markWatched')}" onclick="quickWatch(this,${id},${d.next.season},${d.next.episode},${d.next.runtime || 'null'})">${CHECK}</button></div>` : ''}
-      ${d.next_air ? `<div class="nextrow"><div class="info"><small>${t('newEpisode')}</small><span class="code">${code(d.next_air)}</span><span class="epname">${esc(d.next_air.name)}</span></div>
+      ${d.next_air ? `<div class="nextrow"><a class="info eplinkrow" href="#/ep/${id}-${d.next_air.season}-${d.next_air.episode}"><small>${t('newEpisode')}</small><span class="code">${code(d.next_air)}</span><span class="epname">${esc(d.next_air.name)} ›</span></a>
         <div class="date">${fmtDate(d.next_air.air_date, true)}</div></div>` : ''}
       ${rw ? `<div class="nextrow"><span class="muted">${t('rewatchInfo')}</span><button class="btn ghost" onclick="T.rewatch(${id},true)">${t('stop')}</button></div>`
         : d.seen_all ? `<div class="nextrow"><span class="muted">${t('seenAll', d.total_plays > d.aired ? d.total_plays - d.aired : 0)}</span><button class="btn" onclick="T.rewatch(${id})">${t('startRewatch')}</button></div>` : ''}
