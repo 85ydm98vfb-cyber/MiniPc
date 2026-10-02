@@ -20,14 +20,14 @@
   --done:#34C759;--more:#C04BDB;
   --bg:#000000;--panel:#141416;--panel2:#1F1F23;--line:#2B2B30;
   --text:#F2F0EA;--muted:#9A9AA2;--accent:#F4C152;--accent-ink:#241A00;
-  --ok:#5CC8B0;--danger:#E8746A;--shade:rgba(0,0,0,.55);
+  --ok:#4DA3FF;--danger:#E8746A;--shade:rgba(0,0,0,.55);
   color-scheme:dark;
 }
 :root[data-theme=grey]{
   /* gri mediu, la jumatatea drumului dintre alb si negru; cardurile mai inchise, ca textul alb sa se citeasca bine */
   --bg:#7A7C83;--panel:#62646B;--panel2:#55575E;--line:#8C8E95;
   --text:#FFFFFF;--muted:#E2E3E7;--accent:#FFD25E;--accent-ink:#2A1E00;
-  --ok:#86F0D3;--danger:#FFB4AD;--shade:rgba(0,0,0,.35);
+  --ok:#9CCBFF;--danger:#FFB4AD;--shade:rgba(0,0,0,.35);
   --done:#7DF29B;--more:#F0A8FF;
   color-scheme:dark;
 }
@@ -35,7 +35,7 @@
   --done:#1E9E45;--more:#A233C4;
   --bg:#E9ECF4;--panel:#FFFFFF;--panel2:#F0F2F8;--line:#D3D8E7;
   --text:#1A1E33;--muted:#5C6280;--accent:#D8960C;--accent-ink:#FFFFFF;
-  --ok:#17917A;--danger:#C4443A;--shade:rgba(40,46,80,.18);
+  --ok:#1F6FD6;--danger:#C4443A;--shade:rgba(40,46,80,.18);
   color-scheme:light;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -206,7 +206,7 @@ h2 .n{color:var(--muted);font-weight:500;margin-left:6px}
 .qadd{position:absolute;top:6px;right:6px;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;
   background:rgba(0,0,0,.65);color:#fff;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .qadd svg{width:17px;height:17px;stroke:currentColor;stroke-width:2.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
-.qadd.in{background:var(--ok);color:#0B1A16}
+.qadd.in{background:var(--ok);color:#03162E}
 .score{position:absolute;left:6px;bottom:6px;font-size:12px;font-weight:800;padding:2px 7px;border-radius:8px;background:rgba(0,0,0,.65);color:#F4C152}
 .dcard b{font-size:14px;font-weight:650;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .dcard small{font-size:12.5px;color:var(--muted);margin-top:-3px}
@@ -299,7 +299,7 @@ h2 .n{color:var(--muted);font-weight:500;margin-left:6px}
 .trailer svg{width:16px;height:16px;fill:currentColor}
 
 .seentag{position:absolute;top:6px;left:6px;display:inline-flex;align-items:center;gap:4px;padding:3px 8px 3px 5px;border-radius:9px;
-  background:var(--ok);color:#0B1A16;font-size:12px;font-weight:800}
+  background:var(--ok);color:#03162E;font-size:12px;font-weight:800}
 .seentag svg{width:14px;height:14px;stroke:currentColor;stroke-width:3.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .dcard.seen .pimg img{opacity:.75}
 
@@ -387,7 +387,7 @@ input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display
 
 .qadd.st-y,.stchk.st-y{background:#F4C152;color:#241A00}
 .qadd.st-g,.stchk.st-g{background:var(--done);color:#062611}
-.qadd.st-t,.stchk.st-t{background:var(--ok);color:#0B1A16}
+.qadd.st-t,.stchk.st-t{background:var(--ok);color:#03162E}
 .qadd.st-s,.stchk.st-s{background:#6E6E76;color:#fff}
 .stchk{position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;z-index:1;box-shadow:0 2px 6px rgba(0,0,0,.35)}
 .stchk svg{width:15px;height:15px;stroke:currentColor;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
@@ -417,6 +417,12 @@ input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display
 .eplinkrow{color:inherit;border-radius:10px}
 .eplinkrow:active{background:var(--panel2)}
 .eplinkrow .epname{color:var(--text)}
+
+:root[data-theme=light] .qadd.st-t,:root[data-theme=light] .stchk.st-t,:root[data-theme=light] .qadd.in:not(.st-y):not(.st-g):not(.st-s){color:#fff}
+
+.stremio{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:50%;background:#7B5BF5;color:#fff;flex:none}
+.stremio svg{width:20px;height:20px;fill:currentColor}
+.stremio:active{transform:scale(.94)}
 
 /* bottom sheet */
 .sheet-bg{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
@@ -588,6 +594,8 @@ const I18N = {
     serverTime:x => `Ora folosită acum: ${x}`, notifCheckNow:'Verifică acum pentru toți', notifChecking:'Verificarea a pornit',
     imdbVotes:n => `${n} voturi pe IMDb`, imdbChart:'Note IMDb pe sezoane', avgRating:'medie', episodesAxis:'episoade',
     imdbPending:'Graficul apare după ce serverul descarcă lista de episoade IMDb (câteva minute după repornire).',
+    openInStremio:'Deschide în Stremio', stremioApp:'Aplicație', stremioAsk:'Întreabă', stremioOpen:'Stremio se deschide în',
+    stremioNoApp:'Aplicația Stremio nu s-a deschis', stremioNoAppText:'Poate nu e instalată pe acest dispozitiv. Îl poți deschide în Stremio Web.',
     searchWeb:'Caută pe net', webTv:'serial', webMovie:'film',
     retry:'Reîncearcă', autoRetry:'Reîncerc automat în câteva secunde.', trailer:'Trailer',
     markUpto:'Marchează tot până aici', notAiredYet:'Nu a apărut încă', noOverview:'Fără descriere.',
@@ -716,6 +724,8 @@ const I18N = {
     serverTime:x => `Time in use now: ${x}`, notifCheckNow:'Check now for everyone', notifChecking:'Check started',
     imdbVotes:n => `${n} votes on IMDb`, imdbChart:'IMDb ratings by season', avgRating:'average', episodesAxis:'episodes',
     imdbPending:'The chart appears once the server has downloaded the IMDb episode list (a few minutes after restart).',
+    openInStremio:'Open in Stremio', stremioApp:'App', stremioAsk:'Ask', stremioOpen:'Open Stremio in',
+    stremioNoApp:"The Stremio app didn't open", stremioNoAppText:"It may not be installed on this device. You can open it in Stremio Web.",
     searchWeb:'Search the web', webTv:'TV series', webMovie:'movie',
     retry:'Try again', autoRetry:'Retrying automatically in a few seconds.', trailer:'Trailer',
     markUpto:'Mark everything up to here', notAiredYet:'Not aired yet', noOverview:'No description.',
@@ -1066,7 +1076,7 @@ function themeRow(){
     `<button class="${th === k ? 'on' : ''}" onclick="setTheme('${k}')">${l}</button>`).join('')}</div>
     <button class="sunbtn ${th === 'sun' ? 'on' : ''}" onclick="setTheme('sun')">◐ ${t('themeSun')}</button>
     ${th === 'sun' ? sunPanel() : ''}</div>
-    <div class="rowline" style="margin-top:14px"><span>${t('language')}</span>${langSwitch()}</div>`;
+    <div class="rowline" style="margin-top:14px"><span>${t('language')}</span>${langSwitch()}</div>${state.me && !state.me.is_admin ? stremioRow() : ''}`;
 }
 function pwForm(){
   return `<form class="inline" id="pwform" style="margin-top:16px"><input name="old" type="password" placeholder="${t('oldPw')}" autocomplete="current-password" required>
@@ -1517,6 +1527,40 @@ function imdbBadge(m){
   return `<a class="imdb" href="https://www.imdb.com/title/${encodeURIComponent(m.id)}/" target="_blank" rel="noopener" title="${votes ? t('imdbVotes', votes) : 'IMDb'}">
     <span class="imdblogo">IMDb</span>${m.rating != null ? `<b>${m.rating.toFixed(1)}</b><span class="of">/10</span>` : ''}</a>`;
 }
+/* ---------- Stremio: aplicatia (stremio://) sau Stremio Web (de ex. pe televizor) ---------- */
+function stremioUrls(type, imdbId, s, e){
+  const ty = type === 'tv' ? 'series' : 'movie';
+  const video = ty === 'movie' ? `/${imdbId}` : (s && e ? `/${imdbId}:${s}:${e}` : '');
+  return {app: `stremio:///detail/${ty}/${imdbId}${video}`, web: `https://web.stremio.com/#/detail/${ty}/${imdbId}${video}`};
+}
+function stremioBtn(type, imdbId, s, e){
+  if(!imdbId) return '';
+  const u = stremioUrls(type, imdbId, s, e);
+  return `<button class="stremio" title="Stremio" aria-label="${t('openInStremio')}" onclick="openStremio('${esc(u.app)}','${esc(u.web)}')"><svg viewBox="0 0 24 24"><path d="M8.5 5.2v13.6l11-6.8z"/></svg></button>`;
+}
+function getStremioMode(){ try { return localStorage.getItem('wt-stremio') || 'app'; } catch { return 'app'; } }
+window.setStremioMode = m => { try { localStorage.setItem('wt-stremio', m); } catch {} softRefresh(); };
+window.openStremio = (app, web) => {
+  const mode = getStremioMode();
+  const openWeb = () => window.open(web, '_blank', 'noopener');
+  const openApp = () => {
+    let left = false;
+    const onHide = () => { left = true; };
+    document.addEventListener('visibilitychange', onHide, {once:true});
+    location.href = app;
+    // daca aplicatia nu s-a deschis (nu e instalata), ofer Stremio Web
+    setTimeout(() => { document.removeEventListener('visibilitychange', onHide);
+      if(!left && !document.hidden) sheet(t('stremioNoApp'), t('stremioNoAppText'), [{label:'Stremio Web', cls:'pri', fn:openWeb}]); }, 1800);
+  };
+  if(mode === 'web') return openWeb();
+  if(mode === 'ask') return sheet('Stremio', '', [{label:t('stremioApp'), cls:'pri', fn:openApp}, {label:'Stremio Web', fn:openWeb}]);
+  openApp();
+};
+function stremioRow(){
+  const m = getStremioMode();
+  return `<div class="rowline" style="margin-top:14px"><span>${t('stremioOpen')}</span><div class="seg">${[['app', t('stremioApp')], ['web', 'Web'], ['ask', t('stremioAsk')]].map(([k, l]) =>
+    `<button class="${m === k ? 'on' : ''}" onclick="setStremioMode('${k}')">${l}</button>`).join('')}</div></div>`;
+}
 function webBtn(d, type){
   const q = `${d.title} ${d.year || ''} ${type === 'tv' ? t('webTv') : t('webMovie')}`.replace(/\s+/g, ' ').trim();
   return `<a class="btn ghost webbtn" href="https://www.google.com/search?q=${encodeURIComponent(q)}" target="_blank" rel="noopener">
@@ -1527,7 +1571,7 @@ function hero(d, facts){
     ${d.poster ? `<img class="poster" src="${img(d.poster)}" alt="">` : '<div class="poster"></div>'}
     <div><h1>${esc(d.title)}</h1><div class="facts">${facts}</div>
     ${d.genres.length ? `<div class="facts" style="margin-top:4px">${esc(d.genres.join(', '))}</div>` : ''}
-    ${d.trailerType ? `<div class="herobtns">${trailerBtn(d, d.trailerType)}${imdbBadge(d.imdb)}${webBtn(d, d.trailerType)}</div>` : ''}</div></div></section>`;
+    ${d.trailerType ? `<div class="herobtns">${trailerBtn(d, d.trailerType)}${imdbBadge(d.imdb)}${webBtn(d, d.trailerType)}${stremioBtn(d.trailerType, d.imdb && d.imdb.id)}</div>` : ''}</div></div></section>`;
 }
 
 /* ---------- ecrane ---------- */
@@ -1769,7 +1813,7 @@ const views = {
       <div class="code" style="font-size:17px;margin-top:6px">${code(e)}${e.count > 1 ? `<span class="xcount">${e.count}×</span>` : ''}</div>
       <h1>${esc(e.name)}</h1>
       <div class="facts">${e.air_date ? `<span class="${e.aired ? '' : 'live'}">${e.aired ? fmtDate(e.air_date) : t('comingOut', fmtDate(e.air_date))}</span>` : ''}${e.runtime ? `<span>${e.runtime} min</span>` : ''}</div>
-      ${e.imdb ? `<div class="herobtns">${imdbBadge(e.imdb)}</div>` : ''}</div></section>`;
+      <div class="herobtns">${e.imdb ? imdbBadge(e.imdb) : ''}${stremioBtn('tv', d.imdb && d.imdb.id, sn, en)}</div></div></section>`;
     if(e.aired){
       h += `<div class="block">` + (e.done
         ? `<div class="rowline"><div class="info"><b style="color:var(--ok)">✓ ${t('watchedTimes', e.count)}</b></div>

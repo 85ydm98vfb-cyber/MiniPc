@@ -1747,8 +1747,8 @@ def post_api(ctx, parts, b):
     t, i = b.get("type", "tv"), int(b.get("id") or 0)
     if t not in ("tv", "movie") or not i:
         raise ApiError(400, "bad_request")
-    if a == "add":
-        return {"item": ensure_item(u, t, i, b.get("status"))}
+    if a == "add":   # butonul + (Discover, Caută, Vezi și...): serialele intră în Plan to watch, filmele în Watchlist
+        return {"item": ensure_item(u, t, i, b.get("status") or ("plan" if t == "tv" else "watchlist"))}
     if a == "remove":
         x("DELETE FROM items WHERE user_id=? AND type=? AND tmdb_id=?", (u, t, i))
         x("DELETE FROM plays WHERE user_id=? AND type=? AND tmdb_id=?", (u, t, i))
