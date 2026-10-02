@@ -389,6 +389,8 @@ input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display
 .qadd.st-g,.stchk.st-g{background:var(--done);color:#062611}
 .qadd.st-t,.stchk.st-t{background:var(--ok);color:#03162E}
 .qadd.st-s,.stchk.st-s{background:#6E6E76;color:#fff}
+.qadd.st-m,.stchk.st-m{background:var(--more);color:#2A0636}
+.dcard.cur.st-m .pimg::after{border-color:var(--more)}
 .stchk{position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;z-index:1;box-shadow:0 2px 6px rgba(0,0,0,.35)}
 .stchk svg{width:15px;height:15px;stroke:currentColor;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .pcard .badge{top:auto;bottom:10px}
@@ -423,6 +425,8 @@ input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display
 .stremio{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:50%;background:#7B5BF5;color:#fff;flex:none}
 .stremio svg{width:20px;height:20px;fill:currentColor}
 .stremio:active{transform:scale(.94)}
+
+:root[data-theme=light] .qadd.st-m,:root[data-theme=light] .stchk.st-m{color:#fff}
 
 /* bottom sheet */
 .sheet-bg{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
@@ -858,11 +862,17 @@ function barCls(i){
   if(done && (i.status === 'completed' || ['Ended', 'Canceled'].includes(i.show_status))) return 'done';
   return done ? 'upd' : '';
 }
-function stCls(st){ return {watchlist:'st-y', plan:'st-y', watched:'st-g', completed:'st-g', watching:'st-t', rewatching:'st-t', stopped:'st-s'}[st] || ''; }
-function stMark(st){ return st ? `<i class="stchk ${stCls(st)}" title="${esc(stLabel(st))}">${CHECK}</i>` : ''; }
-function posterCard({id, type, poster, title, sub, progress, badge, bar = '', st = ''}){
+// culoarea bifei = culoarea barei de progres (tone vine de la server; altfel se deduce din status)
+function stCls(st, tone){
+  if(tone) return 'st-' + tone;
+  return {watchlist:'st-y', plan:'st-y', watching:'st-y', watched:'st-g', completed:'st-g', rewatching:'st-t', stopped:'st-s'}[st] || '';
+}
+function toneFromBar(i){ const b = barCls(i); return b === 'rwb' ? 't' : b === 'done' ? 'g' : b === 'upd' ? 'm' : (i.status === 'stopped' ? 's' : 'y'); }
+function setTone(x, lm){ x.status = (lm[x.type] || {})[x.id] || null; x.tone = ((lm.tone || {})[x.type] || {})[x.id] || null; }
+function stMark(st, tone){ return st ? `<i class="stchk ${stCls(st, tone)}" title="${esc(stLabel(st))}">${CHECK}</i>` : ''; }
+function posterCard({id, type, poster, title, sub, progress, badge, bar = '', st = '', tone = ''}){
   return `<a class="pcard" href="#/${type}/${id}"><div class="pimg">
-    ${poster ? `<img src="${img(poster)}" loading="lazy" alt="">` : `<span>${esc(title)}</span>`}${stMark(st)}
+    ${poster ? `<img src="${img(poster)}" loading="lazy" alt="">` : `<span>${esc(title)}</span>`}${stMark(st, tone)}
     ${badge ? `<i class="badge">${badge}</i>` : ''}
     ${progress != null ? `<div class="tape"><div class="${bar}" style="width:${progress}%"></div></div>` : ''}
   </div><b>${esc(title)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</a>`;
@@ -871,7 +881,7 @@ function discCard(r){
   return `<div class="dcard"><a class="pimg" href="#/${r.type}/${r.id}">
       ${r.poster ? `<img src="${img(r.poster)}" loading="lazy" alt="">` : `<span>${esc(r.title)}</span>`}
       ${r.rating ? `<span class="score">★ ${r.rating}</span>` : ''}</a>
-    <button class="qadd ${r.status ? 'in ' + stCls(r.status) : ''}" aria-label="${r.status ? stLabel(r.status) : t('add')}" onclick="T.quickAdd('${r.type}',${r.id},this)">${r.status ? CHECK : PLUS}</button>
+    <button class="qadd ${r.status ? 'in ' + stCls(r.status, r.tone) : ''}" aria-label="${r.status ? stLabel(r.status) : t('add')}" onclick="T.quickAdd('${r.type}',${r.id},this)">${r.status ? CHECK : PLUS}</button>
     <b>${esc(r.title)}</b>${r.year ? `<small>${r.year}</small>` : ''}</div>`;
 }
 
@@ -1458,7 +1468,7 @@ async function loadSeeAlso(){
   const k = box.dataset.k;
   try {
     const [r, lm] = await Promise.all([api(`${k}/similar`), api('libmap')]);
-    r.items.forEach(x => { x.status = (lm[x.type] || {})[x.id] || null; });
+    r.items.forEach(x => setTone(x, lm));
     state.simCache[k] = r;
     const b2 = $('#seealso'); if(b2 && b2.dataset.k === k) renderSeeAlso();
   } catch {}
@@ -1587,7 +1597,7 @@ async function loadUniverse(tries = 0){
       return;
     }
     const lm = await api('libmap');                      // bife mereu la zi, chiar daca raspunsul e din cache
-    r.groups.forEach(g => g.items.forEach(x => { x.status = (lm[x.type] || {})[x.id] || null; }));
+    r.groups.forEach(g => g.items.forEach(x => setTone(x, lm)));
     state.univCache[k] = r;
     const b2 = $('#universe'); if(b2 && b2.dataset.k === k){ fillKeepH(b2, univHtml(r)); renderSeeAlso(); }
   } catch {}
@@ -1669,8 +1679,8 @@ const views = {
       if(!list.length) return '';
       return `<h2>${lbl(k)}<span class="n">${list.length}</span></h2><div class="grid">${list.map(i => type === 'tv'
         ? posterCard({id:i.tmdb_id, type:'tv', poster:i.poster, title:i.title, progress: i.aired ? Math.round(i.watched / i.aired * 100) : 0,
-            bar: barCls(i), st: i.status, sub: i.aired ? t('epsProg', i.watched, i.aired) : (t('tmdb')[i.show_status] || '')})
-        : posterCard({id:i.tmdb_id, type:'movie', poster:i.poster, title:i.title, badge: i.plays > 1 ? `${i.plays}×` : '', st: i.status,
+            bar: barCls(i), st: i.status, tone: toneFromBar(i), sub: i.aired ? t('epsProg', i.watched, i.aired) : (t('tmdb')[i.show_status] || '')})
+        : posterCard({id:i.tmdb_id, type:'movie', poster:i.poster, title:i.title, badge: i.plays > 1 ? `${i.plays}×` : '', st: i.status, tone: i.status === 'watched' ? 'g' : 'y',
             sub: i.release_date && i.release_date > new Date().toISOString().slice(0, 10) ? t('comingOut', fmtDate(i.release_date)) : i.year})).join('')}</div>`;
     }).join(''));
   },
@@ -1734,7 +1744,7 @@ const views = {
     setTop(t('tabs').discover);
     const D = state.disc;
     const [lm] = await Promise.all([api('libmap'), D.data[D.type] ? null : api('discover?type=' + D.type).then(r => { D.data[D.type] = r; })]);
-    const fix = x => { x.status = (lm[x.type] || {})[x.id] || null; };
+    const fix = x => setTone(x, lm);
     D.results.forEach(fix); D.data[D.type].sections.forEach(s => s.items.forEach(fix));
     const data = D.data[D.type];
     let h = `<div class="disctop">${typeToggle(D.type, 'discType')}
@@ -1758,7 +1768,7 @@ const views = {
     setTop(t('tabs').search);
     const S = state.search;
     if(S.results.length){
-      try { const lm = await api('libmap'); S.results.forEach(x => { x.status = (lm[x.type] || {})[x.id] || null; }); } catch {}
+      try { const lm = await api('libmap'); S.results.forEach(x => setTone(x, lm)); } catch {}
     }
     return typeToggle(S.type, 'searchType') +
       `<div class="searchbox"><input id="q" type="search" placeholder="${S.type === 'tv' ? t('showName') : t('movieName')}" autocomplete="off" enterkeyhint="search" value="${esc(S.q)}"></div><div id="results">${resultsHtml()}</div>`;

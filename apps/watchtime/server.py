@@ -501,7 +501,9 @@ def after_watch(u, sid):
         new = st
         if rem == 0 and a > 0 and d.get("status") in ("Ended", "Canceled"):
             new = "completed"
-        elif st in ("plan", "completed", "stopped") and rem > 0 and w > 0:
+        elif st == "plan" and w > 0:          # a inceput sa se uite (chiar daca a ajuns deja la zi)
+            new = "watching"
+        elif st in ("completed", "stopped") and rem > 0 and w > 0:
             new = "watching"
         if st in ("watching", "completed") and not any(cnt.values()):   # toate episoadele debifate -> De vazut
             new = "plan"
@@ -1494,6 +1496,36 @@ def api_import_start(u, b):
     return job
 
 
+def tone_of(u, it):
+    """Culoarea bifei = culoarea barei de progres: y galben (de vazut / Watchlist / Plan to watch),
+    m mov (la zi, mai vin episoade), g verde (vazut / terminat), t albastru (rewatch), s gri (Dropped)."""
+    st = it["status"]
+    if it["type"] == "movie":
+        return "g" if st == "watched" else "y"
+    if st == "rewatching":
+        return "t"
+    if st == "stopped":
+        return "s"
+    if st == "plan":
+        return "y"
+    try:
+        d = tv_details(it["tmdb_id"])
+    except ApiError:
+        return "g" if st == "completed" else "y"
+    w, a, _ = progress(u, it["tmdb_id"], d, 1)
+    if a > 0 and w >= a:
+        return "g" if st == "completed" or d.get("status") in ("Ended", "Canceled") else "m"
+    return "y"
+
+
+def api_libmap(u):
+    m = {"tv": {}, "movie": {}, "tone": {"tv": {}, "movie": {}}}
+    for it in q("SELECT type, tmdb_id, status FROM items WHERE user_id=?", (u,)):
+        m[it["type"]][it["tmdb_id"]] = it["status"]
+        m["tone"][it["type"]][it["tmdb_id"]] = tone_of(u, it)
+    return m
+
+
 def api_export(u):
     return {"exported_at": now(), "items": q("SELECT * FROM items WHERE user_id=?", (u,)),
             "plays": q("SELECT * FROM plays WHERE user_id=?", (u,))}
@@ -1536,11 +1568,8 @@ def get_api(ctx, parts, qs):
         return api_season(u, int(parts[1]), int(parts[3]))
     if a == "movie" and len(parts) == 2:
         return api_movie(u, int(parts[1]))
-    if a == "libmap":   # statusul tuturor titlurilor din liste (pentru bifele colorate)
-        m = {"tv": {}, "movie": {}}
-        for r in q("SELECT type, tmdb_id, status FROM items WHERE user_id=?", (u,)):
-            m[r["type"]][r["tmdb_id"]] = r["status"]
-        return m
+    if a == "libmap":   # statusul si culoarea bifei (aceeasi cu bara de progres) pentru toate titlurile din liste
+        return coalesce(("libmap", u), lambda: api_libmap(u))
     if a == "library":
         return coalesce(("library", u, str(qs.get("type"))), lambda: api_library(u, qs))
     if a == "shows":
